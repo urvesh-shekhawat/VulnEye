@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan History - VulnEye</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <header class="navbar">
+        <div class="logo">🛡️ VulnEye</div>
+        <nav>
+            <a href="/">New Scan</a>
+            <a href="/logout">Logout</a>
+            <button onclick="toggleDark()" class="back-btn">🌙 Dark</button>
+        </nav>
+    </header>
+
+    <section class="results-container">
+        <h1>Recent Scan History</h1>
+
+        <div class="detail-card">
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>URL</th>
+                        <th>Time</th>
+                        <th>Status Code</th>
+                        <th>HTTPS</th>
+                        <th>Risk</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for scan in scans %}
+                    <tr>
+                        <td>{{ scan[0] }}</td>
+                        <td>{{ scan[1] }}</td>
+                        <td>{{ scan[2] }}</td>
+                        <td>{{ scan[4] }}</td>
+                        <td>{{ scan[5] }}</td>
+                        <td>{{ scan[6] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+<script>
+function toggleDark() {
+    document.body.classList.toggle("dark");
+
+    // save mode in browser
+    if (document.body.classList.contains("dark")) {
+        localStorage.setItem("theme", "dark");
+    } else {
+        localStorage.setItem("theme", "light");
+    }
+}
+
+// load saved theme
+window.onload = function () {
+    if (localStorage.getItem("theme") === "dark") {
+        document.body.classList.add("dark");
+    }
+};
+</script>
+</body>
+</html>
