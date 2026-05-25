@@ -23,6 +23,10 @@ static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "static"))
 # Load local environment variables (.env) if present
 load_dotenv()
 
+# Enable insecure HTTP for local OAuth development (allows http://localhost callbacks)
+if not os.environ.get("VERCEL"):
+    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
 app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
 # Use SECRET_KEY from environment with a fallback
 app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey123_fallback")
