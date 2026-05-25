@@ -13,37 +13,71 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4
+from dotenv import load_dotenv
+from authlib.integrations.flask_client import OAuth
 
 # Explicitly define template and static folder relative to this file
 template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "templates"))
 static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "static"))
 
+# Load local environment variables (.env) if present
+load_dotenv()
+
 app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
-app.secret_key = "supersecretkey123"   # demo purpose only
+# Use SECRET_KEY from environment with a fallback
+app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey123_fallback")
+
+# Setup Authlib OAuth
+oauth = OAuth(app)
+google = oauth.register(
+    name='google',
+    client_id=os.environ.get("GOOGLE_CLIENT_ID"),
+    client_secret=os.environ.get("GOOGLE_CLIENT_SECRET"),
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={'scope': 'openid email profile'}
+)
 
 # Initialize DB
 init_db()
 
-# Demo login credentials
-USERNAME = "admin"
-PASSWORD = "admin123"
-
 def is_logged_in():
     return session.get("logged_in")
 
-@app.route("/login", methods=["GET", "POST"])
+@app.route("/login")
 def login():
-    if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
+    if is_logged_in():
+        return redirect(url_for("home"))
+    
+    # Check if Google OAuth is configured, if not, show a warning on the login page
+    client_id = os.environ.get("GOOGLE_CLIENT_ID")
+    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
+    
+    warning = None
+    if not client_id or not client_secret:
+        warning = "Google OAuth credentials are not configured in your environment. Please copy .env.example to .env and configure them."
+        
+    return render_template("login.html", warning=warning)
 
-        if username == USERNAME and password == PASSWORD:
-            session["logged_in"] = True
+@app.route("/login/google")
+def login_google():
+    redirect_uri = url_for("authorize", _external=True)
+    # Automatically force HTTPS if running in Vercel's proxy environment
+    if os.environ.get("VERCEL") or request.headers.get("X-Forwarded-Proto") == "https":
+        redirect_uri = redirect_uri.replace("http://", "https://")
+    return google.authorize_redirect(redirect_uri)
+
+@app.route("/authorize")
+def authorize():
+    try:
+        token = google.authorize_access_token()
+        user_info = token.get('userinfo')
+        if user_info:
+            session['user'] = user_info
+            session['logged_in'] = True
             return redirect(url_for("home"))
-        else:
-            return render_template("login.html", error="Invalid username or password")
-
-    return render_template("login.html")
+    except Exception as e:
+        return render_template("login.html", error=f"Google Authentication failed: {str(e)}")
+    return redirect(url_for("login"))
 
 @app.route("/logout")
 def logout():
