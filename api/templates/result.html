@@ -8,128 +8,176 @@
 </head>
 <body>
 
+    <!-- Ambient glowing backgrounds -->
+    <div class="ambient-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Premium Navbar -->
     <header class="navbar">
-        <div class="logo">🛡️ VulnEye</div>
+        <div class="logo">
+            <span style="font-size: 24px;">🛡️</span> VulnEye
+        </div>
         <nav>
             <a href="/">New Scan</a>
             <a href="/history">History</a>
             <a href="/logout">Logout</a>
-            <button onclick="toggleDark()" class="back-btn">🌙 Dark</button>
-
+            
+            {% if session.get('user') %}
+            <div class="user-profile">
+                <img src="{{ session['user'].get('picture') }}" class="user-avatar" alt="Avatar">
+                <span class="user-name">{{ session['user'].get('name') }}</span>
+            </div>
+            {% endif %}
+            
+            <button onclick="toggleDark()" class="back-btn" id="themeBtn" style="padding: 8px 16px;">
+                <span id="themeIcon">🌙</span> <span id="themeText">Dark</span>
+            </button>
         </nav>
     </header>
 
-    <section class="results-container">
-        <h2>Scan results for</h2>
-        <h1>{{ results.url }}</h1>
-
-        <form action="/export-pdf" method="POST" style="margin-bottom: 20px;">
-            <input type="hidden" name="url" value="{{ results.url }}">
-            <button type="submit" class="back-btn">Export PDF</button>
-        </form>
-
-        <div class="summary-grid">
-            <div class="summary-card">
-                <h3>Reachable</h3>
-                <p class="good">{{ "Yes" if results.reachable else "No" }}</p>
+    <!-- Main Content Container -->
+    <main class="main-content">
+        <section class="results-container">
+            <div class="results-header">
+                <h2>Security Report Generated</h2>
+                <h1>{{ results.url }}</h1>
             </div>
 
-            <div class="summary-card">
-                <h3>HTTP Status</h3>
-                <p class="good">{{ results.status_code }}</p>
+            <!-- PDF Download form -->
+            <form action="/export-pdf" method="POST" style="margin-bottom: 30px;">
+                <input type="hidden" name="url" value="{{ results.url }}">
+                <button type="submit" class="back-btn primary">
+                    <!-- PDF download icon -->
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:6px;">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    Download PDF Report
+                </button>
+            </form>
+
+            <!-- Summary metrics grid -->
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <h3>Server Reachable</h3>
+                    <p class="good">{{ "Yes" if results.reachable else "No" }}</p>
+                </div>
+
+                <div class="summary-card">
+                    <h3>Response Status</h3>
+                    <p class="good">{{ results.status_code }}</p>
+                </div>
+
+                <div class="summary-card">
+                    <h3>TLS/HTTPS Encryption</h3>
+                    <p class="{{ 'good' if results.https else 'bad' }}">
+                        {{ "Enabled" if results.https else "Disabled" }}
+                    </p>
+                </div>
+
+                <div class="summary-card">
+                    <h3>Aggregated Risk</h3>
+                    <span class="risk-badge risk-{{ results.risk|lower }}" style="margin-top: 6px;">{{ results.risk }}</span>
+                </div>
             </div>
 
-            <div class="summary-card">
-                <h3>HTTPS</h3>
-                <p class="{{ 'good' if results.https else 'bad' }}">
-                    {{ "Enabled" if results.https else "Disabled" }}
-                </p>
+            <!-- Detailed Columns Breakdown -->
+            <div class="details-grid">
+                <div class="detail-card">
+                    <h3>⚠️ Missing Security Headers</h3>
+                    <ul>
+                        {% if results.missing_headers %}
+                            {% for header in results.missing_headers %}
+                                <li>{{ header }}</li>
+                            {% endfor %}
+                        {% else %}
+                            <li style="color: #10b981; font-weight: 700; background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.1);">✓ All required security headers detected!</li>
+                        {% endif %}
+                    </ul>
+                </div>
+
+                <div class="detail-card">
+                    <h3>🔌 Exposed Common Ports</h3>
+                    <ul>
+                        {% if results.open_ports %}
+                            {% for port in results.open_ports %}
+                                <li style="color: #ef4444; background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.1);">Port {{ port }} is currently open</li>
+                            {% endfor %}
+                        {% else %}
+                            <li style="color: #10b981; font-weight: 700; background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.1);">✓ Zero exposed common services isolated!</li>
+                        {% endif %}
+                    </ul>
+                </div>
+
+                <div class="detail-card">
+                    <h3>📁 Accessible Folders</h3>
+                    <ul>
+                        {% if results.found_directories %}
+                            {% for directory in results.found_directories %}
+                                <li>{{ directory }}</li>
+                            {% endfor %}
+                        {% else %}
+                            <li style="color: #10b981; font-weight: 700; background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.1);">✓ No generic admin or test folders detected!</li>
+                        {% endif %}
+                    </ul>
+                </div>
+
+                <div class="detail-card">
+                    <h3>📝 Detected Forms</h3>
+                    <ul>
+                        {% if results.forms %}
+                            {% for form in results.forms %}
+                                <li>
+                                    <strong>{{ form.method }}</strong> to <code>{{ form.action }}</code> ({{ form.input_count }} Inputs)
+                                </li>
+                            {% endfor %}
+                        {% else %}
+                            <li style="color: #10b981; font-weight: 700; background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.1);">✓ No public forms discovered on target.</li>
+                        {% endif %}
+                    </ul>
+                </div>
             </div>
 
-            <div class="summary-card">
-                <h3>Risk Level</h3>
-                <p class="risk-badge risk-{{ results.risk|lower }}">{{ results.risk }}</p>
+            <!-- Back links -->
+            <div class="back-btn-wrap">
+                <a href="/" class="back-btn">← New Audit Scan</a>
             </div>
-        </div>
+        </section>
+    </main>
 
-        <div class="details-grid">
-            <div class="detail-card">
-                <h3>Missing Security Headers</h3>
-                <ul>
-                    {% if results.missing_headers %}
-                        {% for header in results.missing_headers %}
-                            <li>{{ header }}</li>
-                        {% endfor %}
-                    {% else %}
-                        <li>No missing headers found</li>
-                    {% endif %}
-                </ul>
-            </div>
+    <script>
+        function toggleDark() {
+            document.body.classList.toggle("dark");
+            const isDark = document.body.classList.contains("dark");
+            localStorage.setItem("theme", isDark ? "dark" : "light");
+            updateThemeButton(isDark);
+        }
 
-            <div class="detail-card">
-                <h3>Open Ports</h3>
-                <ul>
-                    {% if results.open_ports %}
-                        {% for port in results.open_ports %}
-                            <li>{{ port }}</li>
-                        {% endfor %}
-                    {% else %}
-                        <li>No common open ports found</li>
-                    {% endif %}
-                </ul>
-            </div>
+        function updateThemeButton(isDark) {
+            const icon = document.getElementById("themeIcon");
+            const text = document.getElementById("themeText");
+            if (isDark) {
+                icon.textContent = "☀️";
+                text.textContent = "Light";
+            } else {
+                icon.textContent = "🌙";
+                text.textContent = "Dark";
+            }
+        }
 
-            <div class="detail-card">
-                <h3>Found Directories</h3>
-                <ul>
-                    {% if results.found_directories %}
-                        {% for directory in results.found_directories %}
-                            <li>{{ directory }}</li>
-                        {% endfor %}
-                    {% else %}
-                        <li>No common directories found</li>
-                    {% endif %}
-                </ul>
-            </div>
-
-            <div class="detail-card">
-                <h3>Detected Forms</h3>
-                <ul>
-                    {% if results.forms %}
-                        {% for form in results.forms %}
-                            <li>
-                                Action: {{ form.action }} | Method: {{ form.method }} | Inputs: {{ form.input_count }}
-                            </li>
-                        {% endfor %}
-                    {% else %}
-                        <li>No forms detected</li>
-                    {% endif %}
-                </ul>
-            </div>
-        </div>
-
-        <div class="back-btn-wrap">
-            <a href="/" class="back-btn">New Scan</a>
-        </div>
-    </section>
-<script>
-function toggleDark() {
-    document.body.classList.toggle("dark");
-
-    // save mode in browser
-    if (document.body.classList.contains("dark")) {
-        localStorage.setItem("theme", "dark");
-    } else {
-        localStorage.setItem("theme", "light");
-    }
-}
-
-// load saved theme
-window.onload = function () {
-    if (localStorage.getItem("theme") === "dark") {
-        document.body.classList.add("dark");
-    }
-};
-</script>
+        window.onload = function () {
+            const savedTheme = localStorage.getItem("theme");
+            if (savedTheme === "dark") {
+                document.body.classList.add("dark");
+                updateThemeButton(true);
+            } else {
+                updateThemeButton(false);
+            }
+        };
+    </script>
 </body>
 </html>

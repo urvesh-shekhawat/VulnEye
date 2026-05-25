@@ -8,58 +8,97 @@
 </head>
 <body>
 
+    <!-- Ambient glowing backgrounds -->
+    <div class="ambient-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Premium Navbar -->
     <header class="navbar">
-        <div class="logo">🛡️ VulnEye</div>
+        <div class="logo">
+            <span style="font-size: 24px;">🛡️</span> VulnEye
+        </div>
         <nav>
             <a href="/history">History</a>
             <a href="/logout">Logout</a>
-            <button onclick="toggleDark()" class="back-btn">🌙 Dark</button>
+            
+            {% if session.get('user') %}
+            <div class="user-profile">
+                <img src="{{ session['user'].get('picture') }}" class="user-avatar" alt="Avatar">
+                <span class="user-name">{{ session['user'].get('name') }}</span>
+            </div>
+            {% endif %}
+            
+            <button onclick="toggleDark()" class="back-btn" id="themeBtn" style="padding: 8px 16px;">
+                <span id="themeIcon">🌙</span> <span id="themeText">Dark</span>
+            </button>
         </nav>
     </header>
 
-    <section class="hero">
-        <div class="badge">Trusted security scanning</div>
-        <h1><span>VulnEye</span><br>Web Vulnerability Scanner</h1>
-        <p>Scan any website URL for basic security issues — HTTPS, missing headers, exposed directories, open ports, and more.</p>
+    <!-- Main Container -->
+    <main class="main-content">
+        <section class="hero">
+            <div class="badge">🛡️ ENTERPRISE WEBSCANNERS</div>
+            <h1>Shield Your Digital Assets<br>With <span>VulnEye</span></h1>
+            <p>Conduct safe, non-intrusive automated security audits to detect exposed ports, missing HTTP security headers, insecure directories, and TLS configuration details instantly.</p>
 
-        <form action="/scan" method="POST" class="scan-box">
-            <input type="text" name="url" placeholder="https://example.com" required>
-            <button type="submit">Scan Now</button>
-        </form>
-    </section>
+            <form action="/scan" method="POST" class="scan-box">
+                <input type="text" name="url" placeholder="Enter target URL (e.g., https://example.com)" required>
+                <button type="submit">Scan Target</button>
+            </form>
+        </section>
 
-    <section class="features">
-        <div class="card">
-            <h3>TLS & HTTPS</h3>
-            <p>Verify secure transport configuration.</p>
-        </div>
-        <div class="card">
-            <h3>Header Audit</h3>
-            <p>Detect missing security headers.</p>
-        </div>
-        <div class="card">
-            <h3>Extended Port Scan</h3>
-            <p>Scan top common service ports safely.</p>
-        </div>
-    </section>
-<script>
-function toggleDark() {
-    document.body.classList.toggle("dark");
+        <!-- Feature Cards Grid -->
+        <section class="features">
+            <div class="card">
+                <div class="card-icon">🔑</div>
+                <h3>TLS & SSL Security</h3>
+                <p>Ensures connection encryption is present, auditing certificate availability, redirection settings, and common web layer exposures.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">⚡</div>
+                <h3>HTTP Header Auditing</h3>
+                <p>Checks headers for the existence of HSTS, X-Frame-Options, Content-Security-Policy (CSP), and other vital defense shields.</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">🌐</div>
+                <h3>Port Scan & Mapping</h3>
+                <p>Scans a checklist of critical administration, database, and service ports to isolate unexpected external exposure.</p>
+            </div>
+        </section>
+    </main>
 
-    // save mode in browser
-    if (document.body.classList.contains("dark")) {
-        localStorage.setItem("theme", "dark");
-    } else {
-        localStorage.setItem("theme", "light");
-    }
-}
+    <script>
+        function toggleDark() {
+            document.body.classList.toggle("dark");
+            const isDark = document.body.classList.contains("dark");
+            localStorage.setItem("theme", isDark ? "dark" : "light");
+            updateThemeButton(isDark);
+        }
 
-// load saved theme
-window.onload = function () {
-    if (localStorage.getItem("theme") === "dark") {
-        document.body.classList.add("dark");
-    }
-};
-</script>
+        function updateThemeButton(isDark) {
+            const icon = document.getElementById("themeIcon");
+            const text = document.getElementById("themeText");
+            if (isDark) {
+                icon.textContent = "☀️";
+                text.textContent = "Light";
+            } else {
+                icon.textContent = "🌙";
+                text.textContent = "Dark";
+            }
+        }
+
+        window.onload = function () {
+            const savedTheme = localStorage.getItem("theme");
+            if (savedTheme === "dark") {
+                document.body.classList.add("dark");
+                updateThemeButton(true);
+            } else {
+                updateThemeButton(false);
+            }
+        };
+    </script>
 </body>
 </html>
