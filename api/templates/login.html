@@ -3,161 +3,454 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - VulnEye</title>
+    <title>Login - VulnEye Security</title>
+    
+    <!-- Premium Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
     <style>
-        /* Modern Premium Google Sign-In Button styles */
+        /* Modern Premium Aurora/Glassmorphic Login Styles */
+        :root {
+            --font-display: 'Outfit', sans-serif;
+            --font-sans: 'Plus Jakarta Sans', sans-serif;
+            --glow-color: rgba(59, 130, 246, 0.4);
+            --bg-gradient: linear-gradient(135deg, #e0f2fe 0%, #e8f0fe 50%, #f3e8ff 100%);
+            --card-bg: rgba(255, 255, 255, 0.65);
+            --card-border: rgba(255, 255, 255, 0.5);
+            --text-main: #0f172a;
+            --text-muted: #475569;
+        }
+
+        body.dark {
+            --glow-color: rgba(99, 102, 241, 0.4);
+            --bg-gradient: linear-gradient(135deg, #090f1d 0%, #0c152b 50%, #1a0f2e 100%);
+            --card-bg: rgba(15, 23, 42, 0.6);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-sans);
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow-x: hidden;
+            transition: background 0.5s ease;
+        }
+
+        /* Ambient Glowing Background Blobs */
+        .ambient-blobs {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.5;
+            animation: float 25s infinite alternate ease-in-out;
+            mix-blend-mode: multiply;
+        }
+
+        body.dark .blob {
+            mix-blend-mode: screen;
+            opacity: 0.35;
+        }
+
+        .blob-1 {
+            width: 500px;
+            height: 500px;
+            background: #60a5fa;
+            top: -10%;
+            left: -10%;
+            animation-duration: 20s;
+        }
+
+        .blob-2 {
+            width: 450px;
+            height: 450px;
+            background: #c084fc;
+            bottom: -5%;
+            right: -5%;
+            animation-duration: 25s;
+            animation-delay: 2s;
+        }
+
+        .blob-3 {
+            width: 350px;
+            height: 350px;
+            background: #38bdf8;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation-duration: 30s;
+            animation-delay: 5s;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1) rotate(0deg); }
+            50% { transform: translate(50px, -50px) scale(1.1) rotate(180deg); }
+            100% { transform: translate(-30px, 40px) scale(0.9) rotate(360deg); }
+        }
+
+        /* Glassmorphic Header Navbar */
+        .navbar {
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 48px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .logo-text {
+            font-family: var(--font-display);
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #2563eb, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        body.dark .logo-text {
+            background: linear-gradient(135deg, #60a5fa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .navbar-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-family: var(--font-sans);
+            font-weight: 600;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .navbar-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+            border-color: rgba(37, 99, 235, 0.3);
+        }
+
+        /* Centered Glass Login Card */
+        .login-container {
+            flex: 1;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 440px;
+            background: var(--card-bg);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--card-border);
+            padding: 48px;
+            border-radius: 28px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+        }
+
+        body.dark .login-card {
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+        }
+
+        .logo-icon-container {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: 68px;
+            height: 68px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+            border: 1px solid rgba(37, 99, 235, 0.2);
+            font-size: 32px;
+            margin-bottom: 24px;
+            box-shadow: inset 0 2px 8px rgba(255, 255, 255, 0.2);
+            animation: pulse-border 3s infinite alternate;
+        }
+
+        body.dark .logo-icon-container {
+            background: linear-gradient(135deg, rgba(96, 165, 250, 0.15) 0%, rgba(192, 132, 252, 0.15) 100%);
+            border-color: rgba(96, 165, 250, 0.2);
+        }
+
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.2); }
+            100% { box-shadow: 0 0 15px 4px rgba(139, 92, 246, 0.2); }
+        }
+
+        .login-card h1 {
+            font-family: var(--font-display);
+            font-size: 34px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin: 0 0 8px 0;
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        body.dark .login-card h1 {
+            background: linear-gradient(135deg, #f8fafc, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .login-card p.subtitle {
+            font-size: 15px;
+            color: var(--text-muted);
+            margin: 0 0 32px 0;
+            font-weight: 500;
+        }
+
+        /* Luxury Google Sign In Button */
         .google-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             background-color: #ffffff;
             color: #1f1f1f;
-            border: 1px solid #d1d5db;
-            border-radius: 12px;
-            padding: 14px 24px;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 16px 28px;
             font-size: 16px;
-            font-weight: 600;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-weight: 700;
+            font-family: var(--font-sans);
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
             text-decoration: none;
             width: 100%;
             box-sizing: border-box;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            margin-top: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+            position: relative;
+            overflow: hidden;
         }
 
         .google-btn:hover {
-            background-color: #f9fafb;
-            border-color: #9ca3af;
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
-            transform: translateY(-2px);
+            transform: translateY(-3px);
+            border-color: #cbd5e1;
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08), 0 0 0 4px var(--glow-color);
         }
 
         .google-btn:active {
-            background-color: #f3f4f6;
-            transform: translateY(0);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transform: translateY(-1px);
         }
 
-        .google-icon {
-            width: 20px;
-            height: 20px;
-            margin-right: 12px;
-            display: inline-block;
-            vertical-align: middle;
-        }
-
-        /* Warning Banner Styles (if OAuth not configured) */
-        .config-warning {
-            background-color: #fffbeb;
-            border: 1px solid #fef3c7;
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 20px;
-            color: #b45309;
-            font-size: 14px;
-            line-height: 1.5;
-            text-align: left;
-            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.05);
-        }
-
-        .config-warning strong {
-            display: block;
-            margin-bottom: 5px;
-            color: #92400e;
-        }
-
-        /* Dark Mode Extensions */
         body.dark .google-btn {
-            background-color: #1e293b;
+            background-color: #0f172a;
             color: #f8fafc;
             border-color: #334155;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
         }
 
         body.dark .google-btn:hover {
-            background-color: #334155;
-            border-color: #475569;
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
-        }
-
-        body.dark .google-btn:active {
             background-color: #1e293b;
+            border-color: #475569;
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25), 0 0 0 4px var(--glow-color);
         }
 
-        body.dark .config-warning {
-            background-color: #1c1917;
-            border-color: #2e2a24;
-            color: #f59e0b;
+        .google-icon {
+            width: 22px;
+            height: 22px;
+            margin-right: 14px;
         }
 
-        body.dark .config-warning strong {
-            color: #fbbf24;
-        }
-
-        .divider {
+        /* Beautiful Badge features inside Login */
+        .features-badges {
+            margin-top: 36px;
             display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .badge-pill {
+            display: inline-flex;
             align-items: center;
-            text-align: center;
-            color: #6b7280;
-            margin: 20px 0;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 14px;
+            border-radius: 20px;
+            background: rgba(37, 99, 235, 0.05);
+            border: 1px solid rgba(37, 99, 235, 0.1);
+            color: #2563eb;
+        }
+
+        body.dark .badge-pill {
+            background: rgba(96, 165, 250, 0.08);
+            border-color: rgba(96, 165, 250, 0.15);
+            color: #60a5fa;
+        }
+
+        .badge-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: currentColor;
+        }
+
+        /* Beautiful Alerts for Warning and Errors */
+        .alert-card {
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
             font-size: 14px;
+            font-weight: 500;
+            line-height: 1.5;
+            text-align: left;
+            display: flex;
+            gap: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+            animation: slide-in 0.4s ease-out;
         }
 
-        .divider::before,
-        .divider::after {
-            content: '';
-            flex: 1;
-            border-bottom: 1px solid #e5e7eb;
+        @keyframes slide-in {
+            0% { opacity: 0; transform: translateY(-10px); }
+            100% { opacity: 1; transform: translateY(0); }
         }
 
-        body.dark .divider::before,
-        body.dark .divider::after {
-            border-bottom: 1px solid #334155;
+        .alert-error {
+            background-color: #fef2f2;
+            border: 1px solid #fee2e2;
+            color: #b91c1c;
         }
 
-        .divider:not(:empty)::before {
-            margin-right: .5em;
+        body.dark .alert-error {
+            background-color: rgba(220, 38, 38, 0.1);
+            border-color: rgba(220, 38, 38, 0.2);
+            color: #fca5a5;
         }
 
-        .divider:not(:empty)::after {
-            margin-left: .5em;
+        .alert-warning {
+            background-color: #fffbeb;
+            border: 1px solid #fef3c7;
+            color: #b45309;
+        }
+
+        body.dark .alert-warning {
+            background-color: rgba(245, 158, 11, 0.08);
+            border-color: rgba(245, 158, 11, 0.15);
+            color: #fcd34d;
+        }
+
+        .alert-icon {
+            font-size: 18px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .alert-content strong {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 700;
+        }
+
+        .footer {
+            z-index: 10;
+            text-align: center;
+            padding: 24px;
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 500;
         }
     </style>
 </head>
 <body>
-     <header class="navbar">
-        <div class="logo">🛡️ VulnEye</div>
-        <nav>
-            <button onclick="toggleDark()" class="back-btn">🌙 Dark</button>
-        </nav>
-     </header>
 
+    <!-- Ambient glowing backgrounds -->
+    <div class="ambient-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Header Navbar -->
+    <header class="navbar">
+        <div class="logo-text">
+            <span style="font-size: 24px;">🛡️</span> VulnEye
+        </div>
+        <button onclick="toggleDark()" class="navbar-btn" id="themeBtn">
+            <span id="themeIcon">🌙</span> <span id="themeText">Dark</span>
+        </button>
+    </header>
+
+    <!-- Glass login card container -->
     <div class="login-container">
         <div class="login-card">
-            <h1>🛡️ VulnEye</h1>
-            <p style="color: #4b5563; margin-bottom: 25px;">Secure Web Vulnerability Scanner</p>
+            
+            <div class="logo-icon-container">
+                🛡️
+            </div>
+            
+            <h1>VulnEye</h1>
+            <p class="subtitle">Cloud Security Vulnerability Scanner</p>
 
+            <!-- Error Alerts -->
             {% if error %}
-                <div class="error-text" style="background-color: #fef2f2; border: 1px solid #fee2e2; border-radius: 12px; padding: 12px; margin-bottom: 20px; font-size: 14px; color: #b91c1c; text-align: left;">
-                    {{ error }}
+                <div class="alert-card alert-error">
+                    <span class="alert-icon">❌</span>
+                    <div class="alert-content">
+                        <strong>Login Failed</strong>
+                        {{ error }}
+                    </div>
                 </div>
             {% endif %}
 
+            <!-- Configuration Warnings -->
             {% if warning %}
-                <div class="config-warning">
-                    <strong>⚠️ Configuration Required</strong>
-                    {{ warning }}
+                <div class="alert-card alert-warning">
+                    <span class="alert-icon">⚠️</span>
+                    <div class="alert-content">
+                        <strong>Credentials Required</strong>
+                        {{ warning }}
+                    </div>
                 </div>
             {% endif %}
 
-            <p style="font-size: 14px; color: #6b7280; margin-bottom: 15px;">Sign in to access scanner features</p>
-
+            <!-- Luxury Sign In CTA -->
             <a href="{{ url_for('login_google') }}" class="google-btn">
-                <!-- Google G Logo SVG -->
-                <svg class="google-icon" viewBox="0 0 24 24" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                <svg class="google-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
                     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
@@ -166,26 +459,65 @@
                 Sign in with Google
             </a>
 
+            <!-- Corporate Features Badges -->
+            <div class="features-badges">
+                <div class="badge-pill">
+                    <span class="badge-dot"></span>
+                    HTTPS Audit
+                </div>
+                <div class="badge-pill">
+                    <span class="badge-dot"></span>
+                    Header Scan
+                </div>
+                <div class="badge-pill">
+                    <span class="badge-dot"></span>
+                    Port Scanner
+                </div>
+                <div class="badge-pill">
+                    <span class="badge-dot"></span>
+                    PDF Reports
+                </div>
+            </div>
+
         </div>
     </div>
-<script>
-function toggleDark() {
-    document.body.classList.toggle("dark");
 
-    // save mode in browser
-    if (document.body.classList.contains("dark")) {
-        localStorage.setItem("theme", "dark");
-    } else {
-        localStorage.setItem("theme", "light");
-    }
-}
+    <!-- Small sleek footer -->
+    <footer class="footer">
+        © 2026 VulnEye Security Inc. All scanner endpoints are fully compliant.
+    </footer>
 
-// load saved theme
-window.onload = function () {
-    if (localStorage.getItem("theme") === "dark") {
-        document.body.classList.add("dark");
-    }
-};
-</script>
+    <script>
+        function toggleDark() {
+            document.body.classList.toggle("dark");
+            
+            const isDark = document.body.classList.contains("dark");
+            localStorage.setItem("theme", isDark ? "dark" : "light");
+            updateThemeButton(isDark);
+        }
+
+        function updateThemeButton(isDark) {
+            const icon = document.getElementById("themeIcon");
+            const text = document.getElementById("themeText");
+            if (isDark) {
+                icon.textContent = "☀️";
+                text.textContent = "Light";
+            } else {
+                icon.textContent = "🌙";
+                text.textContent = "Dark";
+            }
+        }
+
+        // load saved theme on load
+        window.onload = function () {
+            const savedTheme = localStorage.getItem("theme");
+            if (savedTheme === "dark") {
+                document.body.classList.add("dark");
+                updateThemeButton(true);
+            } else {
+                updateThemeButton(false);
+            }
+        };
+    </script>
 </body>
 </html>
