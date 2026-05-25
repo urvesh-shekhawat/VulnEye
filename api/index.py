@@ -11,8 +11,10 @@ from reportlab.pdfgen import canvas
 from io import BytesIO
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.colors import HexColor
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import A4
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from dotenv import load_dotenv
 from authlib.integrations.flask_client import OAuth
 
@@ -123,99 +125,196 @@ def export_pdf():
     results = run_scan(url)
 
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    
+    # 40pt margins for a clean grid layout
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
 
     styles = getSampleStyleSheet()
     elements = []
 
-    # ===== TITLE =====
-    title = Paragraph("<b> VulnEye Security Report</b>", styles['Title'])
-    elements.append(title)
-    elements.append(Spacer(1, 10))
+    # ===== CUSTOM PREMIUM STYLES =====
+    title_style = ParagraphStyle(
+        'PremiumTitle',
+        parent=styles['Title'],
+        fontName='Helvetica-Bold',
+        fontSize=24,
+        leading=30,
+        textColor=HexColor('#0f172a'),
+        alignment=TA_LEFT,
+        spaceAfter=6
+    )
+    
+    meta_style = ParagraphStyle(
+        'PremiumMeta',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=10,
+        leading=14,
+        textColor=HexColor('#64748b'),
+        spaceAfter=20
+    )
+    
+    section_style = ParagraphStyle(
+        'PremiumSectionHeading',
+        parent=styles['Heading2'],
+        fontName='Helvetica-Bold',
+        fontSize=13,
+        leading=16,
+        textColor=HexColor('#0f172a'),
+        spaceBefore=14,
+        spaceAfter=10
+    )
+    
+    th_style = ParagraphStyle(
+        'TableHeader',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=10,
+        leading=12,
+        textColor=colors.white
+    )
+    
+    td_style = ParagraphStyle(
+        'TableCell',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=9,
+        leading=13,
+        textColor=HexColor('#334155')
+    )
+
+    td_bold = ParagraphStyle(
+        'TableCellBold',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=9,
+        leading=13,
+        textColor=HexColor('#0f172a')
+    )
+
+    # ===== TOP ACCENT BANNER =====
+    banner_data = [[Paragraph("<b>🛡️ VULNEYE SECURITY AUDIT REPORT</b>", ParagraphStyle('BannerText', fontName='Helvetica-Bold', fontSize=10, textColor=colors.white))]]
+    banner_table = Table(banner_data, colWidths=[515])
+    banner_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), HexColor('#2563eb')),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 12),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+    ]))
+    elements.append(banner_table)
+    elements.append(Spacer(1, 15))
+
+    # ===== TITLE & METADATA =====
+    elements.append(Paragraph("Security Assessment Report", title_style))
+    
+    import datetime
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # Using Paragraph wrapper for long URLs to auto-wrap cleanly
+    elements.append(Paragraph(f"<b>Target URL:</b> {results['url']} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Audit Date:</b> {timestamp}", meta_style))
 
     # ===== SUMMARY TABLE =====
+    # Auto-wrap cells in Paragraph
     summary_data = [
-        ["URL", results['url']],
-        ["Reachable", str(results['reachable'])],
-        ["HTTPS", str(results['https'])],
-        ["Status Code", str(results['status_code'])],
+        [Paragraph("Metric Description", th_style), Paragraph("Identified Valuation", th_style)],
+        [Paragraph("Reachable State", td_bold), Paragraph("Yes (Online)" if results['reachable'] else "No (Offline)", td_style)],
+        [Paragraph("HTTP Status Code", td_bold), Paragraph(str(results['status_code']) if results['status_code'] else "N/A", td_style)],
+        [Paragraph("TLS/HTTPS Encryption", td_bold), Paragraph("Enabled (Secure)" if results['https'] else "Disabled (Insecure)", td_style)],
     ]
 
-    summary_table = Table(summary_data, colWidths=[150, 300])
+    summary_table = Table(summary_data, colWidths=[180, 335])
     summary_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('BACKGROUND', (0, 0), (-1, 0), HexColor('#0f172a')),
+        ('GRID', (0, 0), (-1, -1), 0.5, HexColor('#cbd5e1')),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 12),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, HexColor('#f8fafc')]),
     ]))
-
     elements.append(summary_table)
     elements.append(Spacer(1, 15))
 
-    # ===== RISK BADGE =====
+    # ===== PREMIUM RISK SEVERITY BADGE =====
     risk = results["risk"]
-
     if risk == "Low":
-        risk_color = colors.green
+        risk_bg = HexColor("#d1fae5")
+        risk_border = HexColor("#10b981")
+        risk_text_color = HexColor("#065f46")
     elif risk == "Medium":
-        risk_color = colors.orange  
+        risk_bg = HexColor("#fef3c7")
+        risk_border = HexColor("#f59e0b")
+        risk_text_color = HexColor("#92400e")
     else:
-        risk_color = colors.red
+        risk_bg = HexColor("#fee2e2")
+        risk_border = HexColor("#ef4444")
+        risk_text_color = HexColor("#991b1b")
 
-    risk_table = Table([[f"Risk Level: {risk}"]], colWidths=[200])
+    risk_p_style = ParagraphStyle(
+        'RiskText',
+        fontName='Helvetica-Bold',
+        fontSize=12,
+        leading=14,
+        textColor=risk_text_color,
+        alignment=TA_CENTER
+    )
+
+    risk_cell = [[Paragraph(f"AUDITED AGGREGATED RISK: {risk.upper()}", risk_p_style)]]
+    risk_table = Table(risk_cell, colWidths=[515])
     risk_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), risk_color),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
+        ('BACKGROUND', (0, 0), (-1, -1), risk_bg),
+        ('BOX', (0, 0), (-1, -1), 1, risk_border),
+        ('TOPPADDING', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('BOX', (0, 0), (-1, -1), 1, colors.black)
     ]))
-
     elements.append(risk_table)
-    elements.append(Spacer(1, 20))
+    elements.append(Spacer(1, 15))
 
-    # ===== FUNCTION =====
+    # ===== FUNCTION FOR SECTIONS =====
     def create_section(title, items):
-        elements.append(Paragraph(f"<b>{title}</b>", styles['Heading2']))
-        elements.append(Spacer(1, 8))
+        elements.append(Paragraph(f"<b>{title}</b>", section_style))
 
+        table_data = []
         if items:
-            data = [[str(i)] for i in items]
+            for item in items:
+                # Wrap item in Paragraph to enable multi-line wrapping in table cell
+                table_data.append([Paragraph(f"<font color='#2563eb'>•</font> {item}", td_style)])
         else:
-            data = [["None"]]
+            table_data.append([Paragraph("✓ No exposures identified in this section.", ParagraphStyle('NoExp', parent=td_style, fontName='Helvetica-Bold', textColor=HexColor('#10b981')))])
 
-        table = Table(data, colWidths=[450])
-        table.setStyle(TableStyle([
-            ('GRID', (0, 0), (-1, -1), 0.3, colors.grey),
-            ('BACKGROUND', (0, 0), (-1, -1), colors.whitesmoke),
+        sec_table = Table(table_data, colWidths=[515])
+        sec_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), HexColor('#f8fafc')),
+            ('BOX', (0, 0), (-1, -1), 0.5, HexColor('#e2e8f0')),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 14),
         ]))
-
-        elements.append(table)
-        elements.append(Spacer(1, 15))
+        elements.append(sec_table)
+        elements.append(Spacer(1, 10))
 
     # ===== SECTIONS =====
-    create_section(" Missing Security Headers", results["missing_headers"])
-    create_section(" Open Ports", results["open_ports"])
-    create_section(" Found Directories", results["found_directories"])
+    create_section("Missing Security Headers", results["missing_headers"])
+    create_section("Open Services & Ports", results["open_ports"])
+    create_section("Accessible Generic Directories", results["found_directories"])
 
     # Forms
     forms = []
     for f in results["forms"]:
         forms.append(f"{f['method']} {f['action']} (Inputs: {f['input_count']})")
+    create_section("Detected Interactive Forms", forms)
 
-    create_section(" Detected Forms", forms)
-
-    # ===== VULNERABILITIES =====
-    vulnerabilities = []
-
-    if not results["https"]:
-        vulnerabilities.append("No HTTPS encryption (High Risk)")
-
-    if results["missing_headers"]:
-        vulnerabilities.append("Missing security headers")
-
-    if 80 in results["open_ports"]:
-        vulnerabilities.append("Port 80 open (HTTP insecure)")
+    # ===== WATERMARK FOOTER =====
+    disclaimer_style = ParagraphStyle(
+        'DisclaimerText',
+        fontName='Helvetica',
+        fontSize=8,
+        leading=10,
+        textColor=HexColor('#94a3b8'),
+        alignment=TA_CENTER,
+        spaceBefore=25
+    )
+    elements.append(Paragraph("This automated security assessment was securely generated by VulnEye. Scan responsibly.", disclaimer_style))
 
     # ===== BUILD =====
     doc.build(elements)
