@@ -113,17 +113,19 @@ def scan_stream():
     if not url:
         return "Missing URL", 400
 
+    from scanner import normalize_url
+    url_normalized = normalize_url(url)
+    redirect_url = url_for('result', url=url_normalized)
+
     def generate_stream():
         import json
         import time
-        from scanner import normalize_url, check_status, check_https, check_security_headers, scan_ports, scan_directories, detect_forms, calculate_risk
+        from scanner import check_status, check_https, check_security_headers, scan_ports, scan_directories, detect_forms, calculate_risk
         from urllib.parse import urlparse
 
         # 1. Starting
         yield f"data: {json.dumps({'status': 'starting', 'message': 'Initializing VulnEye scanner...'})}\n\n"
         time.sleep(0.4)
-
-        url_normalized = normalize_url(url)
 
         # 2. Reachability
         yield f"data: {json.dumps({'status': 'reachable', 'message': 'Analyzing host reachability and status code...'})}\n\n"
@@ -142,8 +144,7 @@ def scan_stream():
                 "risk": "Unknown"
             }
             save_scan(results)
-            session['last_scan'] = results
-            yield f"data: {json.dumps({'status': 'done', 'redirect': url_for('result', url=url_normalized)})}\n\n"
+            yield f"data: {json.dumps({'status': 'done', 'redirect': redirect_url})}\n\n"
             return
 
         parsed = urlparse(url_normalized)
@@ -190,7 +191,7 @@ def scan_stream():
         time.sleep(0.5)
 
         # Done Redirect
-        yield f"data: {json.dumps({'status': 'done', 'redirect': url_for('result', url=url_normalized)})}\n\n"
+        yield f"data: {json.dumps({'status': 'done', 'redirect': redirect_url})}\n\n"
 
     # Set response mime-type to text/event-stream
     return Response(generate_stream(), mimetype='text/event-stream')
