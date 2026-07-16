@@ -314,17 +314,31 @@
 
         source.onerror = function(event) {
             source.close();
-            statusText.innerHTML = "<span class='bad' style='font-weight:700;'>Scan aborted due to an error.</span>";
+            
+            // Fetch the stream URL normally to retrieve the exact HTTP error status/message
+            fetch(`/scan/stream?url=${encodeURIComponent(targetUrl)}`)
+                .then(response => {
+                    if (response.status === 401) {
+                        statusText.innerHTML = "<span class='bad' style='font-weight:700;'>Error: Unauthorized. Please login again.</span>";
+                    } else if (!response.ok) {
+                        return response.text().then(text => {
+                            const match = text.match(/<title>(.*?)<\/title>/i);
+                            const errMsg = match ? match[1] : text.substring(0, 150);
+                            statusText.innerHTML = `<span class='bad' style='font-weight:700;'>Error (${response.status}): ${errMsg}</span>`;
+                        });
+                    } else {
+                        statusText.innerHTML = "<span class='bad' style='font-weight:700;'>Scan aborted: Connection lost.</span>";
+                    }
+                })
+                .catch(err => {
+                    statusText.innerHTML = `<span class='bad' style='font-weight:700;'>Scan aborted: Network error (${err.message}).</span>`;
+                });
+
             const currentActiveItem = document.getElementById(stepsMap[currentActiveKey].el);
             if (currentActiveItem) {
                 currentActiveItem.classList.remove('active');
                 currentActiveItem.classList.add('waiting');
             }
-            
-            // Show error block
-            setTimeout(() => {
-                window.location.href = `/?error=${encodeURIComponent('Scanning failed or stream was interrupted.')}`;
-            }, 3000);
         };
 
         // Dark Mode Logic
