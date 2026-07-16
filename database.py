@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import json
 
 # On Vercel, use /tmp/scans.db since root is read-only.
 if os.environ.get("VERCEL"):
@@ -23,9 +24,17 @@ def init_db():
             reachable TEXT,
             status_code TEXT,
             https TEXT,
-            risk TEXT
+            risk TEXT,
+            raw_results TEXT
         )
     """)
+
+    # Self-healing column addition for existing databases
+    try:
+        cursor.execute("ALTER TABLE scan_history ADD COLUMN raw_results TEXT")
+    except sqlite3.OperationalError:
+        # Column already exists
+        pass
 
     conn.commit()
     conn.close()
@@ -34,21 +43,34 @@ def get_connection():
     # Automatically initialize DB if running on Vercel and it was wiped from ephemeral /tmp
     if DB_NAME.startswith("/tmp/") and not os.path.exists(DB_NAME):
         init_db()
-    return sqlite3.connect(DB_NAME)
+    
+    # Run a quick check/migration to ensure raw_results column is present
+    conn = sqlite3.connect(DB_NAME)
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT raw_results FROM scan_history LIMIT 1")
+    except sqlite3.OperationalError:
+        try:
+            cursor.execute("ALTER TABLE scan_history ADD COLUMN raw_results TEXT")
+            conn.commit()
+        except:
+            pass
+    return conn
 
 def save_scan(results):
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO scan_history (url, reachable, status_code, https, risk)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO scan_history (url, reachable, status_code, https, risk, raw_results)
+        VALUES (?, ?, ?, ?, ?, ?)
     """, (
         results["url"],
         str(results["reachable"]),
         str(results["status_code"]),
         str(results["https"]),
-        results["risk"]
+        results["risk"],
+        json.dumps(results)
     ))
 
     conn.commit()
@@ -66,4 +88,24 @@ def get_all_scans():
 
     rows = cursor.fetchall()
     conn.close()
-    return rows
+    return rows
+
+def get_latest_scan_results(url):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT raw_results FROM scan_history
+        WHERE url = ?
+        ORDER BY id DESC LIMIT 1
+    """, (url,))
+
+    row = cursor.fetchone()
+    conn.close()
+
+    if row and row[0]:
+        try:
+            return json.loads(row[0])
+        except Exception:
+            pass
+    return None

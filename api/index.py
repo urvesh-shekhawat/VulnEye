@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from flask import Flask, render_template, request, redirect, url_for, session, make_response, Response
 from scanner import run_scan
-from database import init_db, save_scan, get_all_scans
+from database import init_db, save_scan, get_all_scans, get_latest_scan_results
 from reportlab.pdfgen import canvas
 from io import BytesIO
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -187,7 +187,6 @@ def scan_stream():
         results["risk"] = calculate_risk(results)
 
         save_scan(results)
-        session['last_scan'] = results
         time.sleep(0.5)
 
         # Done Redirect
@@ -205,12 +204,12 @@ def result():
     if not url:
         return redirect(url_for("home"))
 
-    results = session.get('last_scan')
-    if not results or results.get('url') != url:
-        # Fallback to dynamic re-run if session cache is wiped
+    results = get_latest_scan_results(url)
+    if not results:
+        # Fallback to dynamic re-run if scan is not found in database
         from scanner import run_scan
         results = run_scan(url)
-        session['last_scan'] = results
+        save_scan(results)
 
     return render_template("result.html", results=results)
 
