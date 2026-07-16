@@ -4,7 +4,7 @@ import sys
 # Add parent directory to sys.path so modules like scanner and database can be imported
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from flask import Flask, render_template, request, redirect, url_for, session, make_response
+from flask import Flask, render_template, request, redirect, url_for, session, make_response, Response
 from scanner import run_scan
 from database import init_db, save_scan, get_all_scans
 from reportlab.pdfgen import canvas
