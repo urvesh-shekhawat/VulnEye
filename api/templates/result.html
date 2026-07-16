@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scan Results - VulnEye</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Load ApexCharts CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 </head>
 <body>
 
@@ -59,6 +61,20 @@
                     Download PDF Report
                 </button>
             </form>
+
+            <!-- Visual Analytics Dashboard Cards -->
+            {% if results.reachable %}
+            <div class="details-grid" style="margin-bottom: 32px;">
+                <div class="detail-card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 330px;">
+                    <h3 style="width: 100%; border: none; margin-bottom: 0;">🛡️ Compliance Rating</h3>
+                    <div id="complianceChart" style="width: 100%; max-width: 290px; margin: auto;"></div>
+                </div>
+                <div class="detail-card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 330px;">
+                    <h3 style="width: 100%; border: none; margin-bottom: 0;">📊 Audit Area Summary</h3>
+                    <div id="breakdownChart" style="width: 100%; max-width: 330px; margin: auto;"></div>
+                </div>
+            </div>
+            {% endif %}
 
             <!-- Summary metrics grid -->
             <div class="summary-grid">
@@ -150,11 +166,178 @@
     </main>
 
     <script>
+        // Parse results from flask to JS
+        const hasHttps = {{ "true" if results.https else "false" }};
+        const missingHeadersCount = {{ results.missing_headers|length if results.missing_headers else 0 }};
+        const openPortsCount = {{ results.open_ports|length if results.open_ports else 0 }};
+        const foundDirsCount = {{ results.found_directories|length if results.found_directories else 0 }};
+        const riskLevel = "{{ results.risk }}";
+
+        let complianceChart = null;
+        let breakdownChart = null;
+
+        function getChartColors(isDark) {
+            return {
+                labels: isDark ? '#f8fafc' : '#0f172a',
+                grid: isDark ? '#334155' : '#e2e8f0',
+                trackBg: isDark ? '#1e293b' : '#f1f5f9'
+            };
+        }
+
+        function initCharts() {
+            if (!document.getElementById("complianceChart")) return;
+
+            const isDark = document.body.classList.contains("dark");
+            const chartColors = getChartColors(isDark);
+
+            // Compute compliance score based on risk levels
+            let score = 50;
+            if (riskLevel === 'Low') score = 95;
+            else if (riskLevel === 'Medium') score = 70;
+            else if (riskLevel === 'High') score = 35;
+
+            // Calculate passed/failed categories
+            let passed = 0;
+            let failed = 0;
+
+            if (hasHttps) passed++; else failed++;
+            if (missingHeadersCount === 0) passed++; else failed++;
+            if (openPortsCount === 0) passed++; else failed++;
+            if (foundDirsCount === 0) passed++; else failed++;
+
+            // 1. Radial Compliance Gauge Chart
+            const complianceOptions = {
+                chart: {
+                    type: 'radialBar',
+                    height: 280,
+                    sparkline: { enabled: true }
+                },
+                series: [score],
+                colors: [score >= 90 ? '#10b981' : (score >= 60 ? '#f59e0b' : '#ef4444')],
+                plotOptions: {
+                    radialBar: {
+                        hollow: { size: '70%' },
+                        track: {
+                            background: chartColors.trackBg,
+                            strokeWidth: '100%'
+                        },
+                        dataLabels: {
+                            name: {
+                                show: true,
+                                color: isDark ? '#94a3b8' : '#64748b',
+                                fontSize: '13px',
+                                fontWeight: 600,
+                                offsetY: -10
+                            },
+                            value: {
+                                show: true,
+                                color: chartColors.labels,
+                                fontSize: '36px',
+                                fontWeight: 800,
+                                offsetY: 10,
+                                formatter: function(val) { return val + "%"; }
+                            }
+                        }
+                    }
+                },
+                labels: ['Compliance Rate'],
+                stroke: { lineCap: 'round' }
+            };
+
+            // 2. Breakdown Donut Chart
+            const breakdownOptions = {
+                chart: {
+                    type: 'donut',
+                    height: 280
+                },
+                series: [passed, failed],
+                labels: ['Passed Categories', 'Flagged Categories'],
+                colors: ['#10b981', '#ef4444'],
+                legend: {
+                    position: 'bottom',
+                    labels: { colors: chartColors.labels },
+                    fontFamily: 'Plus Jakarta Sans',
+                    fontWeight: 600
+                },
+                dataLabels: { enabled: false },
+                plotOptions: {
+                    pie: {
+                        donut: {
+                            size: '65%',
+                            labels: {
+                                show: true,
+                                name: {
+                                    show: true,
+                                    color: isDark ? '#94a3b8' : '#64748b'
+                                },
+                                value: {
+                                    show: true,
+                                    color: chartColors.labels,
+                                    fontSize: '20px',
+                                    fontWeight: 700
+                                },
+                                total: {
+                                    show: true,
+                                    label: 'Audit Areas',
+                                    color: isDark ? '#94a3b8' : '#64748b',
+                                    formatter: function(w) { return w.globals.seriesTotals.reduce((a, b) => a + b, 0); }
+                                }
+                            }
+                        }
+                    }
+                },
+                stroke: { show: false },
+                tooltip: {
+                    theme: isDark ? 'dark' : 'light'
+                }
+            };
+
+            complianceChart = new ApexCharts(document.querySelector("#complianceChart"), complianceOptions);
+            breakdownChart = new ApexCharts(document.querySelector("#breakdownChart"), breakdownOptions);
+
+            complianceChart.render();
+            breakdownChart.render();
+        }
+
+        function updateChartsTheme(isDark) {
+            if (!complianceChart || !breakdownChart) return;
+            const chartColors = getChartColors(isDark);
+
+            complianceChart.updateOptions({
+                plotOptions: {
+                    radialBar: {
+                        track: { background: chartColors.trackBg },
+                        dataLabels: {
+                            value: { color: chartColors.labels }
+                        }
+                    }
+                }
+            });
+
+            breakdownChart.updateOptions({
+                legend: {
+                    labels: { colors: chartColors.labels }
+                },
+                plotOptions: {
+                    pie: {
+                        donut: {
+                            labels: {
+                                value: { color: chartColors.labels }
+                            }
+                        }
+                    }
+                },
+                tooltip: { theme: isDark ? 'dark' : 'light' }
+            });
+        }
+
+        // Dark Mode Logic
         function toggleDark() {
             document.body.classList.toggle("dark");
             const isDark = document.body.classList.contains("dark");
             localStorage.setItem("theme", isDark ? "dark" : "light");
             updateThemeButton(isDark);
+            updateChartsTheme(isDark);
         }
 
         function updateThemeButton(isDark) {
@@ -171,12 +354,14 @@
 
         window.onload = function () {
             const savedTheme = localStorage.getItem("theme");
-            if (savedTheme === "dark") {
+            const isDark = savedTheme === "dark";
+            if (isDark) {
                 document.body.classList.add("dark");
                 updateThemeButton(true);
             } else {
                 updateThemeButton(false);
             }
+            initCharts();
         };
     </script>
 </body>

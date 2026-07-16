@@ -102,9 +102,115 @@ def scan():
         return redirect(url_for("login"))
 
     url = request.form.get("url")
-    results = run_scan(url)
+    return render_template("scan_progress.html", url=url)
 
-    save_scan(results)
+@app.route("/scan/stream")
+def scan_stream():
+    if not is_logged_in():
+        return "Unauthorized", 401
+
+    url = request.args.get("url")
+    if not url:
+        return "Missing URL", 400
+
+    def generate_stream():
+        import json
+        import time
+        from scanner import normalize_url, check_status, check_https, check_security_headers, scan_ports, scan_directories, detect_forms, calculate_risk
+        from urllib.parse import urlparse
+
+        # 1. Starting
+        yield f"data: {json.dumps({'status': 'starting', 'message': 'Initializing VulnEye scanner...'})}\n\n"
+        time.sleep(0.4)
+
+        url_normalized = normalize_url(url)
+
+        # 2. Reachability
+        yield f"data: {json.dumps({'status': 'reachable', 'message': 'Analyzing host reachability and status code...'})}\n\n"
+        status = check_status(url_normalized)
+
+        if not status["reachable"]:
+            results = {
+                "url": url_normalized,
+                "reachable": False,
+                "status_code": None,
+                "https": False,
+                "missing_headers": [],
+                "open_ports": [],
+                "found_directories": [],
+                "forms": [],
+                "risk": "Unknown"
+            }
+            save_scan(results)
+            session['last_scan'] = results
+            yield f"data: {json.dumps({'status': 'done', 'redirect': url_for('result', url=url_normalized)})}\n\n"
+            return
+
+        parsed = urlparse(url_normalized)
+        host = parsed.netloc
+
+        # 3. SSL Check
+        yield f"data: {json.dumps({'status': 'ssl', 'message': 'Auditing TLS/HTTPS encryption configuration...'})}\n\n"
+        https_status = check_https(url_normalized)
+        time.sleep(0.3)
+
+        # 4. Headers Check
+        yield f"data: {json.dumps({'status': 'headers', 'message': 'Testing missing HTTP defense headers...'})}\n\n"
+        missing_headers = check_security_headers(url_normalized)
+        time.sleep(0.3)
+
+        # 5. Port Scan
+        yield f"data: {json.dumps({'status': 'ports', 'message': 'Scanning common external service ports...'})}\n\n"
+        open_ports = scan_ports(host)
+
+        # 6. Directories Scan
+        yield f"data: {json.dumps({'status': 'dirs', 'message': 'Probing directory index for administrative entry points...'})}\n\n"
+        found_directories = scan_directories(url_normalized)
+
+        # 7. Forms Extraction
+        yield f"data: {json.dumps({'status': 'forms', 'message': 'Scanning forms and parsing form inputs...'})}\n\n"
+        forms = detect_forms(url_normalized)
+        time.sleep(0.2)
+
+        # Compilation
+        yield f"data: {json.dumps({'status': 'saving', 'message': 'Compiling risk matrices and saving logs...'})}\n\n"
+        results = {
+            "url": url_normalized,
+            "reachable": True,
+            "status_code": status["status_code"],
+            "https": https_status,
+            "missing_headers": missing_headers,
+            "open_ports": open_ports,
+            "found_directories": found_directories,
+            "forms": forms
+        }
+        results["risk"] = calculate_risk(results)
+
+        save_scan(results)
+        session['last_scan'] = results
+        time.sleep(0.5)
+
+        # Done Redirect
+        yield f"data: {json.dumps({'status': 'done', 'redirect': url_for('result', url=url_normalized)})}\n\n"
+
+    # Set response mime-type to text/event-stream
+    return Response(generate_stream(), mimetype='text/event-stream')
+
+@app.route("/result")
+def result():
+    if not is_logged_in():
+        return redirect(url_for("login"))
+
+    url = request.args.get("url")
+    if not url:
+        return redirect(url_for("home"))
+
+    results = session.get('last_scan')
+    if not results or results.get('url') != url:
+        # Fallback to dynamic re-run if session cache is wiped
+        from scanner import run_scan
+        results = run_scan(url)
+        session['last_scan'] = results
 
     return render_template("result.html", results=results)
 
