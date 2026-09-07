@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subdomain Reconnaissance & Discovery - VulnEye Tools</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="dark">
+
+    <div class="ambient-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Cyber Navbar -->
+    <header class="navbar">
+        <a href="/" class="logo">
+            <div class="logo-shield">🛡️</div>
+            <span class="logo-text">VulnEye</span>
+        </a>
+
+        <div class="nav-links">
+            <a href="/tools" class="nav-link">← All Tools</a>
+            <a href="/pricing" class="nav-link">💳 Pricing</a>
+            {% if session.get('logged_in') %}
+            <a href="/dashboard" class="btn-cyber-primary" style="padding: 8px 18px;">SOC Dashboard →</a>
+            {% else %}
+            <a href="/login" class="btn-cyber-primary" style="padding: 8px 18px;">Sign In ↗</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <main class="main-content">
+        
+        <div style="text-align: center; max-width: 650px; margin: 30px auto 24px;">
+            <div class="cyber-badge" style="margin-bottom: 8px;">PERIMETER RECONNAISSANCE</div>
+            <h1 style="font-family: var(--font-display); font-size: 32px; font-weight: 800;">
+                Subdomain Enumeration Engine
+            </h1>
+            <p style="color: var(--text-dim); font-size: 14px;">
+                Probe critical subdomains (api, admin, staging, dev, portal, vpn) and discover live server IPs.
+            </p>
+
+            <form action="/tools/subdomain-finder" method="POST" style="display: flex; gap: 10px; max-width: 500px; margin: 24px auto 0;">
+                <input 
+                    type="text" 
+                    name="target" 
+                    placeholder="example.com" 
+                    value="{{ target or '' }}"
+                    class="table-search-input" 
+                    style="flex: 1;" 
+                    required
+                >
+                <button type="submit" class="btn-cyber-primary">Find Subdomains</button>
+            </form>
+        </div>
+
+        {% if result %}
+        <div class="detail-card" style="max-width: 750px; margin: 30px auto;">
+            <div class="detail-card-title">
+                <h3>🌐 Active Subdomains for {{ result.base_domain }}</h3>
+                <span class="step-badge good">{{ result.found_count }} of {{ result.total_probed }} Discovered</span>
+            </div>
+
+            {% if result.subdomains %}
+            <div class="history-table-wrapper" style="margin-top: 10px;">
+                <table class="cyber-table">
+                    <thead>
+                        <tr>
+                            <th>Discovered Hostname</th>
+                            <th style="width: 180px;">Resolved IP Address</th>
+                            <th style="width: 110px; text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sub in result.subdomains %}
+                        <tr>
+                            <td style="font-family: var(--font-mono); font-weight: 700; color: var(--primary-cyan);">
+                                {{ sub.subdomain }}
+                            </td>
+                            <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-dim);">
+                                {{ sub.ip }}
+                            </td>
+                            <td style="text-align: right;">
+                                <a href="/scan?url={{ sub.subdomain|urlencode }}" class="btn-cyber-secondary" style="padding: 4px 8px; font-size: 11px;">
+                                    Audit 🚀
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="text-align: center; padding: 20px; color: var(--text-muted);">
+                No standard public subdomains responded on probed prefixes.
+            </p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+    </main>
+
+    <script src="{{ url_for('static', filename='cyber-effects.js') }}"></script>
+</body>
+</html>

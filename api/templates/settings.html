@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Developer Settings & API Keys - VulnEye CyberSentinel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .token-alert-box {
+            background: rgba(0, 255, 157, 0.1);
+            border: 1px solid var(--color-success);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .token-display {
+            background: #090d16;
+            border: 1px dashed var(--color-success);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            font-size: 14px;
+            color: #00ff9d;
+            word-break: break-all;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    </style>
+</head>
+<body class="dark">
+
+    <div class="ambient-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Cyber Navbar -->
+    <header class="navbar">
+        <a href="/dashboard" class="logo">
+            <div class="logo-shield">🛡️</div>
+            <span class="logo-text">VulnEye</span>
+        </a>
+
+        <div class="nav-links">
+            <a href="/dashboard" class="nav-link">📊 SOC Dashboard</a>
+            <a href="/scan" class="nav-link">🎯 Run Scan</a>
+            <a href="/monitoring" class="nav-link">🔄 Watchlist</a>
+            <a href="/compare" class="nav-link">⚔️ Compare</a>
+            <a href="/history" class="nav-link">📜 History</a>
+            <a href="/tools" class="nav-link">🧰 Tools</a>
+            <a href="/settings" class="nav-link active">⚙️ API Keys</a>
+        </div>
+
+        <div class="navbar-actions">
+            <button onclick="toggleAudio()" class="navbar-btn" id="audioToggleBtn" title="Toggle SFX">
+                🔊 <span>SFX</span>
+            </button>
+            <button onclick="toggleDark()" class="navbar-btn" id="themeBtn">
+                <span id="themeIcon">☀️</span> <span id="themeText">Light</span>
+            </button>
+
+            {% if session.get('user') %}
+            <div class="user-profile-dropdown" id="userProfileDropdown">
+                <button type="button" class="user-profile-badge avatar-only" id="userProfileBtn" onclick="toggleUserProfileMenu(event)" title="{{ session['user'].get('name') }} (Account Profile)">
+                    <img src="{{ session['user'].get('picture') }}" class="user-profile-avatar" alt="Avatar">
+                    <span class="user-online-status-dot"></span>
+                </button>
+
+                <div class="user-profile-menu" id="userProfileMenu">
+                    <div class="profile-menu-header">
+                        <img src="{{ session['user'].get('picture') }}" class="profile-menu-avatar-lg" alt="Avatar">
+                        <div class="profile-menu-info">
+                            <div class="profile-menu-fullname">{{ session['user'].get('name') }}</div>
+                            <div class="profile-menu-email">{{ session['user'].get('email', '') }}</div>
+                            <span class="profile-menu-badge-pill">🛡️ {{ session.get('user', {}).get('plan', 'PRO PLAN')|upper }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-quick-stats">
+                        <div class="profile-stat-item">
+                            <span class="profile-stat-label">Clearance</span>
+                            <span class="profile-stat-val">Verified SecOps</span>
+                        </div>
+                        <div class="profile-stat-item">
+                            <span class="profile-stat-label">Telemetry</span>
+                            <span class="profile-stat-val">24/7 Active</span>
+                        </div>
+                    </div>
+
+                    <div class="profile-menu-links">
+                        <a href="/settings" class="profile-menu-link">⚙️ <span>Account & API Keys</span></a>
+                        <a href="/dashboard" class="profile-menu-link">📊 <span>SOC Dashboard</span></a>
+                        <a href="/history" class="profile-menu-link">📜 <span>Scan History</span></a>
+                        <a href="/monitoring" class="profile-menu-link">🔄 <span>Watchlist Monitor</span></a>
+                        <a href="/pricing" class="profile-menu-link">💳 <span>Upgrade & Billing</span></a>
+                        <a href="/tools" class="profile-menu-link">🧰 <span>Free Cyber Tools</span></a>
+                    </div>
+
+                    <div class="profile-menu-divider"></div>
+
+                    <a href="/logout" class="profile-menu-logout">
+                        <span>🚪 Logout</span>
+                        <span style="font-size: 10px; opacity: 0.8; font-family: var(--font-mono);">SIGN OUT</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </header>
+
+    <main class="main-content">
+        
+        <section class="results-hero-card" style="margin-bottom: 24px;">
+            <div>
+                <h2>⚙️ DEVELOPER CONTROL PANEL</h2>
+                <h1>CI/CD API Keys & Integrations</h1>
+                <p style="color: var(--text-dim); font-size: 13px; margin-top: 4px;">
+                    Generate tokens for automated security scanning in GitHub Actions, GitLab CI, and custom scripts.
+                </p>
+            </div>
+
+            <!-- Create API Key Form -->
+            <form action="/settings/api-key/create" method="POST" style="display: flex; gap: 8px;">
+                <input 
+                    type="text" 
+                    name="name" 
+                    placeholder="Key name (e.g. GitHub Actions)" 
+                    class="table-search-input" 
+                    style="width: 220px;"
+                    required
+                >
+                <button type="submit" class="btn-cyber-primary" style="padding: 8px 16px;">+ Generate Key</button>
+            </form>
+        </section>
+
+        <!-- New Token Alert (Only visible right after creation) -->
+        {% if new_token %}
+        <div class="token-alert-box">
+            <h3 style="color: var(--color-success); font-size: 16px; margin-bottom: 4px;">
+                🔑 API Key Generated Successfully!
+            </h3>
+            <p style="font-size: 13px; color: var(--text-dim);">
+                Please copy this key now. For security reasons, you won't be able to view it again.
+            </p>
+            <div class="token-display">
+                <code>{{ new_token }}</code>
+                <button onclick="copyToClipboard('{{ new_token }}', this)" class="btn-cyber-secondary" style="padding: 4px 10px; font-size: 11px;">
+                    📋 Copy
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Active Subscription Overview -->
+        <div class="detail-card" style="margin-bottom: 24px;">
+            <div class="detail-card-title" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3>🛡️ Active Membership Plan</h3>
+                    <span style="font-size: 12px; color: var(--text-dim); margin-top: 2px;">Account tier clearance & billing status</span>
+                </div>
+                <span class="step-badge {% if subscription.is_pro or subscription.is_enterprise %}good{% else %}info{% endif %}">
+                    {{ subscription.plan|upper }}
+                </span>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--card-border);">
+                <div>
+                    <div style="font-size: 14px; font-weight: 700; color: var(--text-main);">
+                        {{ subscription.plan }} ({{ subscription.amount }} / {{ subscription.billing_cycle }})
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-dim); margin-top: 2px;">
+                        Status: <strong style="color: #00ff9d;">Active</strong> • Continuous Watchlist & API Scanner Enabled
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <a href="/pricing" class="btn-cyber-primary" style="padding: 8px 16px; font-size: 12.5px;">
+                        ⚡ Manage & Upgrade Plan
+                    </a>
+                </div>
+            </div>
+
+            {% if transactions %}
+            <div style="margin-top: 18px; border-top: 1px dashed var(--card-border); padding-top: 14px;">
+                <div style="font-size: 12px; font-weight: 700; color: var(--text-dim); margin-bottom: 8px;">RECENT BILLING INVOICES:</div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    {% for t in transactions %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; background: rgba(0,0,0,0.2); padding: 8px 12px; border-radius: 6px;">
+                        <div>
+                            <span style="font-family: var(--font-mono); color: var(--primary-cyan); font-weight: 700;">{{ t.transaction_id }}</span>
+                            <span style="color: var(--text-dim); margin-left: 8px;">{{ t.plan_name }} ({{ t.amount }})</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="font-size: 11px; color: var(--text-dim); font-family: var(--font-mono);">{{ t.created_at }}</span>
+                            <a href="/invoice/{{ t.transaction_id }}" class="btn-cyber-secondary" style="padding: 3px 8px; font-size: 11px;">
+                                📜 Receipt
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Active API Keys Table -->
+        <div class="history-table-wrapper">
+            <table class="cyber-table">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">ID</th>
+                        <th>Key Identifier</th>
+                        <th style="width: 220px;">Key Prefix</th>
+                        <th style="width: 170px;">Created Date</th>
+                        <th style="width: 110px; text-align: center;">Status</th>
+                        <th style="width: 120px; text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if api_keys %}
+                        {% for key in api_keys %}
+                        <tr>
+                            <td style="font-family: var(--font-mono); color: var(--text-dim);">#{{ key.id }}</td>
+                            <td style="font-weight: 700; color: var(--text-main);">
+                                {{ key.name }}
+                            </td>
+                            <td style="font-family: var(--font-mono); color: var(--primary-cyan);">
+                                {{ key.key_prefix }}
+                            </td>
+                            <td style="font-size: 12px; color: var(--text-dim); font-family: var(--font-mono);">
+                                {{ key.created_at.strftime("%Y-%m-%d %H:%M") }}
+                            </td>
+                            <td style="text-align: center;">
+                                <span class="{{ 'good' if key.is_active else 'bad' }}" style="font-weight: 700; font-size: 12px;">
+                                    {{ "ACTIVE" if key.is_active else "REVOKED" }}
+                                </span>
+                            </td>
+                            <td style="text-align: right;">
+                                {% if key.is_active %}
+                                <a href="/settings/api-key/revoke/{{ key.id }}" onclick="return confirm('Revoke this API Key? It will stop functioning immediately.');" class="btn-cyber-secondary" style="padding: 4px 10px; font-size: 11px; color: var(--color-danger); border-color: rgba(255,42,95,0.3);">
+                                    Revoke
+                                </a>
+                                {% else %}
+                                <span style="font-size: 11px; color: var(--text-muted);">Disabled</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                                No API keys generated yet. Click "+ Generate Key" to connect your CI/CD pipeline.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+    </main>
+
+    <script src="{{ url_for('static', filename='cyber-effects.js') }}"></script>
+</body>
+</html>

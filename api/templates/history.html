@@ -23,22 +23,67 @@
         </a>
 
         <div class="nav-links">
-            <a href="/" class="nav-link">🎯 New Scan</a>
-            
-            {% if session.get('user') %}
-            <div class="user-profile-badge">
-                <img src="{{ session['user'].get('picture') }}" class="user-profile-avatar" alt="Avatar">
-                <span>{{ session['user'].get('name') }}</span>
-            </div>
-            {% endif %}
+            <a href="/dashboard" class="nav-link">📊 Dashboard</a>
+            <a href="/scan" class="nav-link">🎯 Scan</a>
+            <a href="/analyzer" class="nav-link">🤖 Report AI Explainer</a>
+            <a href="/guide" class="nav-link">📖 Security Handbook</a>
+            <a href="/history" class="nav-link active">📜 History</a>
+        </div>
 
+        <div class="navbar-actions">
             <button onclick="toggleAudio()" class="navbar-btn" id="audioToggleBtn" title="Toggle SFX">
                 🔊 <span>SFX</span>
             </button>
             <button onclick="toggleDark()" class="navbar-btn" id="themeBtn">
                 <span id="themeIcon">☀️</span> <span id="themeText">Light</span>
             </button>
-            <a href="/logout" class="nav-link" style="color: var(--color-danger);">Logout</a>
+
+            {% if session.get('user') %}
+            <div class="user-profile-dropdown" id="userProfileDropdown">
+                <button type="button" class="user-profile-badge avatar-only" id="userProfileBtn" onclick="toggleUserProfileMenu(event)" title="{{ session['user'].get('name') }} (Account Profile)">
+                    <img src="{{ session['user'].get('picture') }}" class="user-profile-avatar" alt="Avatar">
+                    <span class="user-online-status-dot"></span>
+                </button>
+
+                <div class="user-profile-menu" id="userProfileMenu">
+                    <div class="profile-menu-header">
+                        <img src="{{ session['user'].get('picture') }}" class="profile-menu-avatar-lg" alt="Avatar">
+                        <div class="profile-menu-info">
+                            <div class="profile-menu-fullname">{{ session['user'].get('name') }}</div>
+                            <div class="profile-menu-email">{{ session['user'].get('email', '') }}</div>
+                            <span class="profile-menu-badge-pill">🛡️ {{ session.get('user', {}).get('plan', 'PRO PLAN')|upper }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-quick-stats">
+                        <div class="profile-stat-item">
+                            <span class="profile-stat-label">Clearance</span>
+                            <span class="profile-stat-val">Verified SecOps</span>
+                        </div>
+                        <div class="profile-stat-item">
+                            <span class="profile-stat-label">Telemetry</span>
+                            <span class="profile-stat-val">24/7 Active</span>
+                        </div>
+                    </div>
+
+                    <div class="profile-menu-links">
+                        <a href="/settings" class="profile-menu-link">⚙️ <span>Account & API Keys</span></a>
+                        <a href="/dashboard" class="profile-menu-link">📊 <span>SOC Dashboard</span></a>
+                        <a href="/history" class="profile-menu-link">📜 <span>Scan History</span></a>
+                        <a href="/monitoring" class="profile-menu-link">🔄 <span>Watchlist Monitor</span></a>
+                        <a href="/pricing" class="profile-menu-link">💳 <span>Upgrade & Billing</span></a>
+                        <a href="/tools" class="profile-menu-link">🧰 <span>Free Cyber Tools</span></a>
+                    </div>
+
+                    <div class="profile-menu-divider"></div>
+
+                    <a href="/logout" class="profile-menu-logout">
+                        <span>🚪 Logout</span>
+                        <span style="font-size: 10px; opacity: 0.8; font-family: var(--font-mono);">SIGN OUT</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </header>
 
@@ -76,13 +121,13 @@
             <table class="cyber-table" id="historyLogsTable">
                 <thead>
                     <tr>
-                        <th style="width: 70px;">ID</th>
+                        <th style="width: 60px;">ID</th>
                         <th>Target Domain / URL</th>
-                        <th style="width: 170px;">Timestamp</th>
-                        <th style="width: 120px; text-align: center;">HTTP Status</th>
-                        <th style="width: 110px; text-align: center;">TLS/HTTPS</th>
-                        <th style="width: 130px; text-align: center;">Risk Level</th>
-                        <th style="width: 120px; text-align: right;">Action</th>
+                        <th style="width: 160px;">Timestamp</th>
+                        <th style="width: 110px; text-align: center;">HTTP Status</th>
+                        <th style="width: 100px; text-align: center;">TLS/HTTPS</th>
+                        <th style="width: 110px; text-align: center;">Risk Level</th>
+                        <th style="width: 140px; text-align: right;">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -109,9 +154,14 @@
                             </span>
                         </td>
                         <td style="text-align: right;">
-                            <a href="/result?url={{ scan[1]|urlencode }}" class="btn-cyber-secondary" style="padding: 6px 12px; font-size: 12px;">
-                                View ↗
-                            </a>
+                            <div style="display: inline-flex; gap: 6px; align-items: center;">
+                                <a href="/result?url={{ scan[1]|urlencode }}" class="btn-cyber-secondary" style="padding: 5px 10px; font-size: 11px;">
+                                    View ↗
+                                </a>
+                                <a href="/scan/delete/{{ scan[0] }}" onclick="return confirm('Are you sure you want to delete scan #{{ scan[0] }}?');" class="btn-cyber-secondary" style="padding: 5px 8px; font-size: 11px; color: var(--color-danger); border-color: rgba(255,42,95,0.3);" title="Delete Record">
+                                    ✕
+                                </a>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}

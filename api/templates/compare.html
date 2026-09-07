@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan Diff & Posture Comparison - VulnEye</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .compare-selector-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        .diff-tag-fixed {
+            background: rgba(0, 255, 157, 0.15);
+            color: #00ff9d;
+            border: 1px solid rgba(0, 255, 157, 0.3);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .diff-tag-new {
+            background: rgba(255, 42, 95, 0.15);
+            color: #ff2a5f;
+            border: 1px solid rgba(255, 42, 95, 0.3);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body class="dark">
+
+    <div class="ambient-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Cyber Navbar -->
+    <header class="navbar">
+        <a href="/dashboard" class="logo">
+            <div class="logo-shield">🛡️</div>
+            <span class="logo-text">VulnEye</span>
+        </a>
+
+        <div class="nav-links">
+            <a href="/dashboard" class="nav-link">📊 Dashboard</a>
+            <a href="/scan" class="nav-link">🎯 Scan</a>
+            <a href="/analyzer" class="nav-link">🤖 Report AI Explainer</a>
+            <a href="/guide" class="nav-link">📖 Security Handbook</a>
+            <a href="/monitoring" class="nav-link">🔄 Watchlist</a>
+            <a href="/compare" class="nav-link active">⚔️ Compare</a>
+            <a href="/tools" class="nav-link">🧰 Tools</a>
+        </div>
+
+        <div class="navbar-actions">
+            <button onclick="toggleAudio()" class="navbar-btn" id="audioToggleBtn" title="Toggle SFX">
+                🔊 <span>SFX</span>
+            </button>
+            <button onclick="toggleDark()" class="navbar-btn" id="themeBtn">
+                <span id="themeIcon">☀️</span> <span id="themeText">Light</span>
+            </button>
+
+            {% if session.get('user') %}
+            <div class="user-profile-dropdown" id="userProfileDropdown">
+                <button type="button" class="user-profile-badge avatar-only" id="userProfileBtn" onclick="toggleUserProfileMenu(event)" title="{{ session['user'].get('name') }} (Account Profile)">
+                    <img src="{{ session['user'].get('picture') }}" class="user-profile-avatar" alt="Avatar">
+                    <span class="user-online-status-dot"></span>
+                </button>
+
+                <div class="user-profile-menu" id="userProfileMenu">
+                    <div class="profile-menu-header">
+                        <img src="{{ session['user'].get('picture') }}" class="profile-menu-avatar-lg" alt="Avatar">
+                        <div class="profile-menu-info">
+                            <div class="profile-menu-fullname">{{ session['user'].get('name') }}</div>
+                            <div class="profile-menu-email">{{ session['user'].get('email', '') }}</div>
+                            <span class="profile-menu-badge-pill">🛡️ {{ session.get('user', {}).get('plan', 'PRO PLAN')|upper }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-quick-stats">
+                        <div class="profile-stat-item">
+                            <span class="profile-stat-label">Clearance</span>
+                            <span class="profile-stat-val">Verified SecOps</span>
+                        </div>
+                        <div class="profile-stat-item">
+                            <span class="profile-stat-label">Telemetry</span>
+                            <span class="profile-stat-val">24/7 Active</span>
+                        </div>
+                    </div>
+
+                    <div class="profile-menu-links">
+                        <a href="/settings" class="profile-menu-link">⚙️ <span>Account & API Keys</span></a>
+                        <a href="/dashboard" class="profile-menu-link">📊 <span>SOC Dashboard</span></a>
+                        <a href="/history" class="profile-menu-link">📜 <span>Scan History</span></a>
+                        <a href="/monitoring" class="profile-menu-link">🔄 <span>Watchlist Monitor</span></a>
+                        <a href="/pricing" class="profile-menu-link">💳 <span>Upgrade & Billing</span></a>
+                        <a href="/tools" class="profile-menu-link">🧰 <span>Free Cyber Tools</span></a>
+                    </div>
+
+                    <div class="profile-menu-divider"></div>
+
+                    <a href="/logout" class="profile-menu-logout">
+                        <span>🚪 Logout</span>
+                        <span style="font-size: 10px; opacity: 0.8; font-family: var(--font-mono);">SIGN OUT</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </header>
+
+    <main class="main-content">
+        
+        <section class="results-hero-card" style="margin-bottom: 24px;">
+            <div>
+                <h2>⚔️ REGRESSION & DIFF ENGINE</h2>
+                <h1>Side-by-Side Security Posture Comparison</h1>
+                <p style="color: var(--text-dim); font-size: 13px; margin-top: 4px;">
+                    Verify patch deployments and detect new vulnerabilities between scan snapshots.
+                </p>
+            </div>
+        </section>
+
+        <!-- Scan Selector Form -->
+        <div class="compare-selector-card">
+            <form action="/compare" method="POST" style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px;">
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-dim); display: block; margin-bottom: 6px;">
+                        BASELINE SCAN (A - Older)
+                    </label>
+                    <select name="scan_1" class="table-search-input" style="width: 100%;" required>
+                        <option value="">Select Baseline Scan...</option>
+                        {% for s in scans %}
+                        <option value="{{ s[0] }}" {% if scan_1|string == s[0]|string %}selected{% endif %}>
+                            #{{ s[0] }} - {{ s[1] }} ({{ s[2] }} | {{ s[6] }} Risk)
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div style="flex: 1; min-width: 250px;">
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-dim); display: block; margin-bottom: 6px;">
+                        COMPARISON SCAN (B - Recent)
+                    </label>
+                    <select name="scan_2" class="table-search-input" style="width: 100%;" required>
+                        <option value="">Select Target Scan...</option>
+                        {% for s in scans %}
+                        <option value="{{ s[0] }}" {% if scan_2|string == s[0]|string %}selected{% endif %}>
+                            #{{ s[0] }} - {{ s[1] }} ({{ s[2] }} | {{ s[6] }} Risk)
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <button type="submit" class="btn-cyber-primary" style="padding: 10px 24px;">
+                    ⚔️ Run Diff
+                </button>
+            </form>
+        </div>
+
+        {% if comparison %}
+        <!-- Posture Delta Banner -->
+        <div class="posture-card" style="margin-bottom: 24px;">
+            <div>
+                <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase;">
+                    Security Posture Delta
+                </span>
+                <h2 style="font-family: var(--font-display); font-size: 28px; font-weight: 800; margin-top: 4px;">
+                    {% if comparison.score_delta > 0 %}
+                        <span style="color: var(--color-success);">▲ +{{ comparison.score_delta }}% Security Posture Improved!</span>
+                    {% elif comparison.score_delta < 0 %}
+                        <span style="color: var(--color-danger);">▼ {{ comparison.score_delta }}% Posture Degradation Detected</span>
+                    {% else %}
+                        <span style="color: var(--primary-cyan);">● Posture Unchanged</span>
+                    {% endif %}
+                </h2>
+                <p style="color: var(--text-dim); font-size: 13px;">
+                    Comparing Snapshot #{{ comparison.scan_a.id }} vs #{{ comparison.scan_b.id }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Diff Matrix Grid -->
+        <div class="details-grid">
+            
+            <!-- Resolved / Fixed Vulnerabilities -->
+            <div class="detail-card">
+                <div class="detail-card-title">
+                    <h3>🟢 Remediated & Fixed Items</h3>
+                    <span class="step-badge good">RESOLVED</span>
+                </div>
+                <ul>
+                    {% for h in comparison.headers.fixed %}
+                    <li class="finding-item success-finding">
+                        <span>✓ Header <strong>{{ h }}</strong> is now properly configured!</span>
+                        <span class="diff-tag-fixed">FIXED</span>
+                    </li>
+                    {% endfor %}
+                    {% for p in comparison.ports.closed %}
+                    <li class="finding-item success-finding">
+                        <span>✓ Port <strong>{{ p }}</strong> was successfully closed/restricted.</span>
+                        <span class="diff-tag-fixed">CLOSED</span>
+                    </li>
+                    {% endfor %}
+                    {% for l in comparison.leaks.fixed %}
+                    <li class="finding-item success-finding">
+                        <span>✓ Leaked file <code>{{ l }}</code> was removed/blocked.</span>
+                        <span class="diff-tag-fixed">RESOLVED</span>
+                    </li>
+                    {% endfor %}
+                    {% if not comparison.headers.fixed and not comparison.ports.closed and not comparison.leaks.fixed %}
+                    <li class="finding-item">
+                        <span style="color: var(--text-muted);">No remediations detected between these two scans.</span>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+
+            <!-- New Exposures & Regressions -->
+            <div class="detail-card">
+                <div class="detail-card-title">
+                    <h3>🔴 New Threats & Regressions</h3>
+                    <span class="step-badge bad">NEW RISKS</span>
+                </div>
+                <ul>
+                    {% for h in comparison.headers.new_missing %}
+                    <li class="finding-item danger-finding">
+                        <span>⚠️ Missing defense header <strong>{{ h }}</strong> was newly removed.</span>
+                        <span class="diff-tag-new">REGRESSION</span>
+                    </li>
+                    {% endfor %}
+                    {% for p in comparison.ports.new %}
+                    <li class="finding-item danger-finding">
+                        <span>🚨 Port <strong>{{ p }}</strong> newly opened to public traffic!</span>
+                        <span class="diff-tag-new">NEW EXPOSURE</span>
+                    </li>
+                    {% endfor %}
+                    {% for l in comparison.leaks.new %}
+                    <li class="finding-item danger-finding">
+                        <span>🚨 Sensitive file <code>{{ l }}</code> newly exposed!</span>
+                        <span class="diff-tag-new">NEW LEAK</span>
+                    </li>
+                    {% endfor %}
+                    {% if not comparison.headers.new_missing and not comparison.ports.new and not comparison.leaks.new %}
+                    <li class="finding-item success-finding">
+                        <span>✓ Zero new security regressions detected!</span>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+
+        </div>
+        {% endif %}
+
+    </main>
+
+    <script src="{{ url_for('static', filename='cyber-effects.js') }}"></script>
+</body>
+</html>

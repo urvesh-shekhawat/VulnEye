@@ -1,212 +1,251 @@
-# 🛡️ VulnEye — Enterprise Web Vulnerability Scanner
+# 🛡️ VulnEye — Enterprise Web Vulnerability & SOC Intelligence Platform
 
 [![Vercel Deployment](https://img.shields.io/badge/Deployed%20on-Vercel-black?logo=vercel&logoColor=white)](https://vercel.com)
 [![Python Version](https://img.shields.io/badge/Python-3.9%2B-blue?logo=python&logoColor=white)](https://python.org)
 [![Framework](https://img.shields.io/badge/Framework-Flask%203.x-red?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
 [![OAuth 2.0](https://img.shields.io/badge/Auth-Google%20OAuth-4285F4?logo=google&logoColor=white)](https://console.cloud.google.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Bilingual: EN / HI](https://img.shields.io/badge/Language-English%20%7C%20Hindi%20Bilingual-00f0ff.svg)](#-bilingual-support)
 
-VulnEye is a premium, modern web vulnerability scanner designed to conduct rapid, non-intrusive security assessments of public web domains. Fully optimized for serverless deployments on Vercel, it features a sleek glassmorphic dark/light interface, Google OAuth 2.0 authentication, and a corporate-grade dynamic PDF report generation engine.
+**VulnEye** is a commercial-grade, modern Web Security Scanner, AI Threat Explainer, and SOC Command Center designed for developers, penetration testers, and security startups. It delivers automated non-intrusive security audits, real-time threat explanations in **English & Hindi**, continuous domain monitoring, and corporate-grade executive PDF reporting.
 
 ---
 
 ## 📋 Table of Contents
 
 - [Overview](#-overview)
-- [Core Features](#-core-features)
+- [Enterprise Feature Suite](#-enterprise-feature-suite)
+- [Live Modules & Architecture](#-live-modules--architecture)
 - [Technology Stack](#-technology-stack)
-- [Project Structure](#-project-structure)
+- [Project Directory Structure](#-project-directory-structure)
 - [Local Installation & Setup](#-local-installation--setup)
-- [Google Cloud Console Setup](#-google-cloud-console-setup)
-- [Vercel Deployment (CI/CD)](#-vercel-deployment-cicd)
-- [Contributing](#-contributing)
+- [Google Cloud OAuth Configuration](#-google-cloud-oauth-configuration)
+- [Production Cloud Deployment (Vercel / Render)](#-production-cloud-deployment)
+- [API Reference](#-api-reference)
 - [Disclaimer & License](#-disclaimer--license)
 
 ---
 
 ## 🎯 Overview
 
-VulnEye assists developers and security professionals in assessing the baseline security posture of public-facing web applications. Rather than using aggressive, intrusive payloads, it performs high-speed security audits, analyzing transport layer encryptions, HTTP header configurations, public port exposures, and generic administrative directory structures. 
+VulnEye bridges the gap between raw automated scanning and actionable remediation. It allows security analysts and startup teams to audit the perimeter defense of web assets without launching dangerous intrusive attacks. Every vulnerability identified comes with dual-language educational breakdowns, risk scoring, and verified server configuration snippets (Nginx, Apache, Express, Django).
 
 ---
 
-## ✨ Core Features
+## ✨ Enterprise Feature Suite
 
-### 🔑 1. Secure Google OAuth 2.0 Sign-In
-* Integrated using the secure `Authlib` engine communicating with Google's OpenID Connect discovery services.
-* Custom-designed, official brand-compliant Google Login screen.
-* Safe local authentication fallback displaying warning banners if environment credentials are not yet configured.
+### 1. 🔍 Multi-Vector Security Scanner
+* **SSL/TLS & Cryptography Audit:** Certificate validity, chain verification, cipher deprecation, and HTTPS redirection enforcement.
+* **HTTP Security Headers:** Checks for missing `Strict-Transport-Security` (HSTS), `Content-Security-Policy` (CSP), `X-Frame-Options`, `X-Content-Type-Options`, `Permissions-Policy`, and `Referrer-Policy`.
+* **Public Port & Service Discovery:** Rapid asynchronous probing of common exposed ports (21, 22, 25, 53, 80, 110, 443, 1433, 3306, 5432, 6379, 8080).
+* **Sensitive Directory & File Discovery:** Non-intrusive probing for common exposed administrative panels, backup files, and config endpoints (`/admin`, `/.env`, `/.git`, `/config.json`, `/backup.sql`).
+* **CORS & Cookie Security:** Verifies `Access-Control-Allow-Origin` wildcards and audits `Secure`, `HttpOnly`, and `SameSite` flags on session cookies.
+* **Tech Stack Detection:** Identifies web servers, frontend frameworks, CDNs, and backend libraries from response headers and DOM signatures.
 
-### 🔍 2. Multi-Vector Security Scanner
-* **SSL/TLS Security Audit:** Assesses cert availability, secure transport, and secure redirection.
-* **HTTP Headers Scanner:** Analyzes response headers for vital configurations such as HSTS (`Strict-Transport-Security`), CSP (`Content-Security-Policy`), `X-Frame-Options`, and `X-Content-Type-Options`.
-* **Port Scanner & Service Mapping:** Safely audits a checklist of common database, system, and web service ports (e.g., 20, 21, 22, 23, 25, 53, 80, 110, 443, 1433, 3306, 5432, 8080) for unexpected exposure.
-* **Directory Brute-Forcer:** Audits target domains for accessible generic administrative or system folders (e.g., `/admin`, `/login`, `/config`, `/test`).
-* **Form Auditor:** Automatically extracts interactive HTML form definitions, capturing actions, methods, and input fields.
+### 2. 🤖 AI Security Report Explainer (`/analyzer`)
+* **Bilingual English & Hindi Mode:** Users can toggle between **English** and **Hindi (हिंग्लिश / हिंदी)** for in-depth vulnerability explanations.
+* **Interactive JSON/URL Report Import:** Paste raw scan results or enter any domain to receive an instant executive summary, impact breakdown, and step-by-step remediation guide.
+* **Selective UI Language Switching:** Explanations dynamically translate without modifying website navigation chrome.
 
-### 📄 3. Corporate-Grade PDF Security Reports
-* Generates professional, highly styled security assessment dossiers via `ReportLab`.
-* Features custom brand banner bars, double-staged headers, metadata grids (timestamps and scan parameters), and zebra-striped metric tables.
-* **Smart Text-Wrapping:** Wraps extremely long target URLs inside paragraph blocks to prevent text clipping and page overflows.
-* **Severity Pill Banners:** High-contrast color-coded indicators representing aggregated risk (Low = Mint green, Medium = Amber gold, High = Crimson red).
+### 3. 📖 Security Handbook & Knowledgebase (`/guide`)
+* Comprehensive interactive glossary covering all major web security vectors (SSL/TLS, Missing Headers, Open Ports, Sensitive Files, CORS, Forms).
+* Provides direct remediation snippets for **Nginx**, **Apache**, **Node.js (Helmet)**, and **Python (Django/Flask)**.
+* Includes one-click bilingual language switching (English / Hindi).
 
-### ⚙️ 4. Serverless-Safe Self-Healing Database
-* Configured to run on Vercel's read-only serverless functions.
-* Dynamically detects serverless environments and redirects SQLite writes to the ephemeral `/tmp/scans.db` directory.
-* Automatically recreates directories and compiles SQL schemas on-the-fly when serverless containers cold-start.
+### 4. 💳 Full Working Checkout & Payment Window (`/checkout`, `/pricing`, `/invoice/<id>`)
+* **4 Live Payment Gateways:** Supports Credit/Debit Cards, UPI & Dynamic QR Code, PayPal, and Cryptocurrency (BTC, ETH, USDT).
+* **Simulated 256-Bit Cryptographic Authorization:** Interactive radar sweep progress loader with live transaction approval.
+* **Instant Plan Upgrades:** Real-time database update for **Pro Enterprise** and **SOC Custom** membership tiers.
+* **Printable PDF Invoices:** Auto-generates official receipts at `/invoice/<transaction_id>` with transaction IDs, itemized breakdowns, and browser print triggers.
 
-### 🎨 5. Luxury Glassmorphism UI/UX
-* Dynamic background featuring floating color-shifting **ambient auroras** animated with smooth CSS keyframes.
-* Translucent cards (`backdrop-filter: blur(24px)`) styled with glowing focus rings, border-pulse animations, and interactive hover transitions.
-* Sleek dark/light toggles that transition effortlessly, dynamically updating the layout and components.
-* Auto-resolving navbar profile badges displaying your active **Google avatar picture** and full name!
+### 5. 📊 Executive SOC Command Center (`/dashboard`)
+* Real-time threat posture overview with interactive **ApexCharts** risk distribution donut charts.
+* Quick metrics: Total Domains Audited, Critical Risk Targets, Active Telemetry, and Clearance Status.
+* Searchable live scan logs with one-click PDF export and direct re-scan actions.
+
+### 6. 👁️ Continuous Target Watchlist (`/monitoring`)
+* Add target domains to an automated security watchlist.
+* Tracks risk drift, uptime reachability, and baseline security grade shifts over time.
+
+### 7. ⚔️ Side-by-Side Target Compare (`/compare`)
+* Compare the security posture of two different domains side-by-side.
+* Ideal for auditing **Staging vs Production** or benchmarking against competitor infrastructures.
+
+### 8. 🧰 Free Cyber Tools Suite (`/tools`)
+* **Subdomain Enumerator:** Passive discovery of public DNS subdomains.
+* **SSL Certificate Inspector:** Real-time certificate expiry, issuer, and SAN inspection.
+* **Security Headers Checker:** Instant header compliance grade report.
+* **Password Strength & Entropy Analyzer:** High-security password validation engine.
+
+### 9. 🔊 Sci-Fi Cyber Sound Synthesizer (Web Audio API)
+* Built-in browser oscillator generating real-time high-tech sound effects (button clicks, hover shimmer, theme sweeps, scan sonar pings, modal apertures, and success chords).
+* Zero external MP3 dependencies with instant **`🔊 SFX On / 🔇 SFX Off`** navbar toggle and visual HUD toast.
+
+### 10. 👤 Clean Avatar-Only Navbar & Rich Profile Modal
+* Ultra-compact navigation bar displaying a circular glowing profile avatar with an active online status dot.
+* One-click dropdown modal displaying user profile details, email, subscription badge, security clearance, quick navigation links, and secure sign-out.
 
 ---
 
 ## 🛠️ Technology Stack
 
-| Technology | Purpose | Implementation Details |
+| Component | Technology | Description |
 | :--- | :--- | :--- |
-| **Python 3.12+** | Backend Logic & Audits | Flask 3.x, Authlib, requests, beautifulsoup4, reportlab, python-dotenv |
-| **SQLite 3** | Ephemeral/Local Logging | Self-healing directory & table initializations, serverless compatibility |
-| **HTML5 & CSS3** | High-End User Interface | Glassmorphism, HSL tailored variables, keyframe animations, Outfit font |
-| **ES6 JavaScript** | Frontend Interactions | LocalStorage-backed state sync, dynamic dark mode rendering |
+| **Backend Framework** | **Python 3.12+ / Flask 3.x** | High-speed serverless routing, OAuth2 authentication, and REST APIs |
+| **Security Scanning Engine** | **Socket, Requests, BeautifulSoup4** | Multi-threaded port probing, header analysis, SSL inspection |
+| **Report Generation** | **ReportLab 4.x** | High-resolution corporate PDF dossiers with custom styling and severity pills |
+| **Authentication** | **Authlib / Google OpenID Connect** | Secure OAuth 2.0 user login and session handling |
+| **Database** | **SQLite 3 / SQLAlchemy** | Self-healing schema with serverless `/tmp/scans.db` automatic fallback |
+| **Frontend UI/UX** | **Vanilla HTML5, Modern CSS3, ES6 JavaScript** | Glassmorphism, CSS keyframes, dark/light theme, ApexCharts |
+| **Audio Engine** | **Web Audio API** | Dynamic real-time sound frequency synthesis |
 
 ---
 
-## 📂 Project Structure
-
-The project has been refactored to align with the modern serverless layout expected by cloud deployment hosts:
+## 📂 Project Directory Structure
 
 ```text
 VulnEye/
-├── api/                   # Main Serverless Source Folder
-│   ├── index.py           # Flask Application Entry Point (Vercel Entry)
-│   ├── static/            # Static Assets
-│   │   └── style.css      # Cohesive Luxury Global Stylesheet
-│   └── templates/         # Jinja2 HTML Templates (Glassmorphism Designs)
-│       ├── history.html   # Scans Logs Dashboard & Tables
-│       ├── index.html     # Futuristic Scanner Launchpad
-│       ├── login.html     # Premium Google Login UI
-│       └── result.html    # Vulnerabilities Results Dashboard
-├── .env.example           # Secrets Template for Local Configurations
-├── .gitignore             # Git Exclude Lists (UTF-8 Encoded)
-├── app.py                 # Lightweight Local Runner Stub
-├── database.py            # SQLite Dynamic Database Manager (Serverless /tmp fallbacks)
-├── requirements.txt       # Python Dependencies
-├── scanner.py             # Security Scan Logic & Algorithms
-└── vercel.json            # Vercel Serverless Function Routing Configuration
+├── api/                             # Main Application Source Folder
+│   ├── index.py                     # Flask App & Serverless Entry Handler
+│   ├── static/                      # Static Assets
+│   │   ├── style.css                # Global Glassmorphism & Cyber Theme
+│   │   └── cyber-effects.js         # Particle Canvas & Web Audio SFX Synthesizer
+│   └── templates/                   # Jinja2 HTML5 Templates
+│       ├── analyzer.html            # AI Security Report Explainer (EN/HI)
+│       ├── checkout.html            # Working Multi-Gateway Payment Window
+│       ├── compare.html             # Side-by-Side Target Audit Comparator
+│       ├── dashboard.html           # Executive SOC Command Center
+│       ├── docs.html                # REST API Documentation
+│       ├── guide.html               # Security Handbook & Knowledgebase (EN/HI)
+│       ├── history.html             # Historical Scan Logs Dashboard
+│       ├── index.html               # Scan Launchpad
+│       ├── invoice.html             # Printable Official Billing Receipt
+│       ├── landing.html             # High-Conversion Public Showcase Page
+│       ├── login.html               # Google OAuth & Demo Login UI
+│       ├── monitoring.html          # Domain Target Watchlist
+│       ├── pricing.html             # Membership Tiers & Plan Modals
+│       ├── result.html              # Vulnerability Report Dashboard
+│       ├── scan_progress.html       # Real-Time SSE Audit Terminal
+│       ├── settings.html            # API Keys & Active Subscription View
+│       └── tools/                   # Free Cyber Utilities
+│           ├── headers_checker.html # Security Headers Analyzer
+│           ├── password_analyzer.html# Password Entropy Calculator
+│           ├── ssl_checker.html     # SSL/TLS Certificate Inspector
+│           ├── subdomains.html      # Subdomain Discovery Tool
+│           └── tools_index.html     # Cyber Suite Hub
+├── app.py                           # Local Development Server Runner
+├── database.py                      # Database Models (Scans, Subscriptions, Invoices)
+├── scanner.py                       # Security Auditing Logic & Algorithms
+├── requirements.txt                 # Python Dependencies
+├── vercel.json                      # Vercel Serverless Routing Config
+├── render.yaml                      # Render Web Service Deployment Spec
+├── .env.example                     # Environment Variable Template
+└── README.md                        # Documentation & Project Guide
 ```
 
 ---
 
 ## 🚀 Local Installation & Setup
 
-Follow these steps to run VulnEye locally in your development environment:
-
-### Step 1: Clone and Navigate
+### 1. Clone the Repository
 ```bash
 git clone https://github.com/urvesh-shekhawat/VulnEye.git
 cd VulnEye
 ```
 
-### Step 2: Establish Virtual Environment & Install Dependencies
+### 2. Create Virtual Environment & Install Dependencies
 ```bash
+# Create venv
 python -m venv venv
-# On Windows:
-venv\Scripts\activate
-# On macOS/Linux:
+
+# Activate on Windows:
+.\venv\Scripts\activate
+
+# Activate on macOS/Linux:
 source venv/bin/activate
 
+# Install requirements
 pip install -r requirements.txt
 ```
 
-### Step 3: Configure Local Environment variables
-1. Copy the template configuration file:
-   ```bash
-   cp .env.example .env
-   ```
-2. Open `.env` and fill in your real Google Cloud Console Credentials (refer to the Google Credentials Setup section below):
-   ```env
-   SECRET_KEY="A_Complex_Random_String_For_Signing_Sessions"
-   GOOGLE_CLIENT_ID="123456789-abcdefg.apps.googleusercontent.com"
-   GOOGLE_CLIENT_SECRET="GOCSPX-abc123yourclientsecret"
-   ```
+### 3. Configure Environment Variables
+Copy `.env.example` to `.env`:
+```bash
+cp .env.example .env
+```
+Edit `.env` with your parameters:
+```env
+SECRET_KEY="your-super-secret-key-change-this"
+GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+```
 
-### Step 4: Run the Development Server
+### 4. Start the Application
 ```bash
 python app.py
 ```
-Open **`http://localhost:5000`** in your browser to start auditing targets!
-
-> [!NOTE]
-> When running locally, the application automatically allows local HTTP loopback callbacks (e.g., `http://localhost:5000/authorize`) by dynamically setting `OAUTHLIB_INSECURE_TRANSPORT="1"` behind the scenes, ensuring a zero-configuration local setup.
+Open **`http://localhost:5000`** in your browser.
 
 ---
 
-## 🔐 Google Cloud Console Setup
+## 🔐 Google Cloud OAuth Configuration
 
-To configure Google OAuth 2.0 Credentials:
+To enable Google Sign-In:
 
-1. Go to the **[Google Cloud Console Credentials Page](https://console.cloud.google.com/apis/credentials)**.
-2. Select or create a project.
-3. Configure the **OAuth Consent Screen** (User Type: External) and add your app's basic information.
-4. Go to **Credentials**, click **Create Credentials** -> **OAuth Client ID**.
-5. Select **Web Application** as the application type.
-6. Add the following parameters:
-   * **Authorized JavaScript origins:**
-     * Local dev: `http://localhost:5000`
-     * Production: `https://your-app.vercel.app` (your Vercel URL)
-   * **Authorized redirect URIs:**
-     * Local dev: `http://localhost:5000/authorize`
-     * Production: `https://your-app.vercel.app/authorize`
-7. Click **Create** and copy your **Client ID** and **Client Secret** into your `.env` file (local) or Vercel dashboard (production).
+1. Open the **[Google Cloud Console Credentials Page](https://console.cloud.google.com/apis/credentials)**.
+2. Create or select a project and configure the **OAuth Consent Screen**.
+3. Go to **Credentials** ➔ **Create Credentials** ➔ **OAuth Client ID** (Web Application).
+4. Configure Authorized URIs:
+   - **Authorized JavaScript Origins:**
+     - Local: `http://localhost:5000`
+     - Production: `https://your-domain.vercel.app`
+   - **Authorized Redirect URIs:**
+     - Local: `http://localhost:5000/authorize`
+     - Production: `https://your-domain.vercel.app/authorize`
+5. Copy your **Client ID** and **Client Secret** into your `.env` or cloud dashboard.
 
 ---
 
-## 🌌 Vercel Deployment (CI/CD)
+## 🌌 Production Cloud Deployment
 
-Since VulnEye is configured with modern serverless rewrites inside `vercel.json`, deploying it live takes under a minute:
+### Deploying to Vercel (Serverless)
 
-1. Push your latest code changes to your GitHub/GitLab repository.
-2. Log into the **[Vercel Dashboard](https://vercel.com)**.
-3. Click **Add New** -> **Project**, find your **`VulnEye`** repository, and click **Import**.
-4. In the Project Settings screen:
-   * Keep **Framework Preset** as `Other` (Vercel automatically detects `vercel.json` and builds the `@vercel/python` runtime).
-   * Keep **Root Directory** as `./`.
-5. Under the **Environment Variables** tab, add your production variables:
-   * `SECRET_KEY` = `[your custom random session signing key]`
-   * `GOOGLE_CLIENT_ID` = `[your Google Client ID]`
-   * `GOOGLE_CLIENT_SECRET` = `[your Google Client Secret]`
-6. Click **Deploy**.
+VulnEye is pre-configured with `vercel.json` for zero-configuration serverless deployments:
 
-Vercel will compile your code, bundle the `api/` directory (carrying templates, styles, and modules), provision a secure HTTPS URL, and host your app live!
-
-> [!IMPORTANT]
-> **Vercel Database Persistence Note:**
-> Serverless environments are stateless. The SQLite database at `/tmp/scans.db` will persist within individual active lambda containers but will be wiped when containers idle or recycle. This is ideal for zero-cost demo environments. If you require permanent history logs, we can configure a cloud PostgreSQL database (e.g. Supabase or Neon) and supply a `DATABASE_URL` env variable!
+1. Push your repository to GitHub.
+2. In the **[Vercel Dashboard](https://vercel.com)**, click **Add New** ➔ **Project** ➔ **Import VulnEye**.
+3. Under **Environment Variables**, add:
+   - `SECRET_KEY` = `[Random Secure String]`
+   - `GOOGLE_CLIENT_ID` = `[Your Google Client ID]`
+   - `GOOGLE_CLIENT_SECRET` = `[Your Google Client Secret]`
+4. Click **Deploy**.
 
 ---
 
-## 🤝 Contributing
+## 📡 API Reference
 
-Contributions are welcome! Please follow these steps to contribute:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request on GitHub.
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/scan?url=target.com` | Conducts security audit and returns JSON assessment |
+| `POST` | `/api/checkout/process` | Processes simulated subscription upgrade & generates receipt |
+| `GET` | `/invoice/<transaction_id>` | Returns printable transaction invoice |
+| `POST` | `/api/tools/ssl` | Inspects target SSL certificate details |
+| `POST` | `/api/tools/headers` | Analyzes HTTP security headers |
+| `POST` | `/api/tools/subdomains` | Discovers public subdomains |
+| `POST` | `/api/tools/password` | Evaluates password strength and entropy |
 
 ---
 
 ## 📜 Disclaimer & License
 
-### ⚠️ Disclaimer
-This tool is intended for authorized security testing only. Unauthorized access to computer systems is illegal. Always ensure you have explicit permission before scanning any website or application. The authors are not responsible for any misuse of this tool.
+### ⚠️ Legal Disclaimer
+VulnEye is developed strictly for authorized cybersecurity testing, educational research, and defense auditing. Unauthorized scanning against targets without prior written consent is strictly prohibited. The creators assume no liability for misuse.
 
-### License
+### 📄 License
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-**Happy Scanning! 🔒**
+<div align="center">
+  <sub>Built with ❤️ for the Cybersecurity & SecOps Community</sub>
+</div>

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VulnEye | Autonomous Cyber Attack Surface Management & PenTesting</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .hero-section {
+            text-align: center;
+            padding: 80px 20px 40px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            border-radius: 30px;
+            background: rgba(0, 240, 255, 0.08);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            color: var(--primary-cyan);
+            font-size: 12px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            margin-bottom: 24px;
+        }
+        .hero-title {
+            font-family: var(--font-display);
+            font-size: 52px;
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: -1px;
+            margin-bottom: 20px;
+        }
+        .hero-gradient {
+            background: linear-gradient(135deg, #00f0ff 0%, #7000ff 50%, #ff007a 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero-desc {
+            font-size: 18px;
+            color: var(--text-dim);
+            max-width: 680px;
+            margin: 0 auto 36px;
+            line-height: 1.6;
+        }
+        .live-scan-box {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 10px;
+            max-width: 650px;
+            margin: 0 auto 40px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            display: flex;
+            gap: 10px;
+            backdrop-filter: blur(16px);
+        }
+        .live-scan-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            padding: 12px 16px;
+            font-size: 15px;
+            font-family: var(--font-mono);
+            outline: none;
+        }
+        .stats-ticker {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            max-width: 900px;
+            margin: 40px auto 70px;
+        }
+        .ticker-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--card-border);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .ticker-num {
+            font-family: var(--font-display);
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--primary-cyan);
+            margin-bottom: 4px;
+        }
+        .ticker-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            max-width: 1100px;
+            margin: 40px auto;
+        }
+        .feature-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 28px;
+            text-align: left;
+            transition: all 0.3s ease;
+        }
+        .feature-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary-cyan);
+            box-shadow: 0 10px 30px rgba(0, 240, 255, 0.1);
+        }
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+        .feature-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .feature-desc {
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+        @media (max-width: 768px) {
+            .hero-title { font-size: 36px; }
+            .stats-ticker { grid-template-columns: repeat(2, 1fr); }
+            .features-grid { grid-template-columns: 1fr; }
+            .live-scan-box { flex-direction: column; }
+        }
+    </style>
+</head>
+<body class="dark">
+
+    <div class="ambient-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Cyber Navbar -->
+    <header class="navbar">
+        <a href="/" class="logo">
+            <div class="logo-shield">🛡️</div>
+            <span class="logo-text">VulnEye</span>
+        </a>
+
+        <div class="nav-links">
+            <a href="/tools" class="nav-link">🧰 Free Tools</a>
+            <a href="/pricing" class="nav-link">💳 Pricing</a>
+            <a href="/docs" class="nav-link">📖 API Docs</a>
+            <a href="/login" class="btn-cyber-primary" style="padding: 8px 18px;">Sign In ↗</a>
+        </div>
+    </header>
+
+    <main class="main-content">
+        
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="hero-badge">
+                <span>⚡ NEXT-GEN CYBER SENTINEL 2.0</span>
+            </div>
+            
+            <h1 class="hero-title">
+                Continuous Attack Surface & <br/>
+                <span class="hero-gradient">Automated Penetration Testing</span>
+            </h1>
+
+            <p class="hero-desc">
+                Identify critical security flaws, exposed ports, leaked environment keys, and SSL misconfigurations before adversaries exploit them.
+            </p>
+
+            <!-- Live Scan Input Box -->
+            <form action="/scan" method="POST" class="live-scan-box">
+                <input 
+                    type="text" 
+                    name="url" 
+                    class="live-scan-input" 
+                    placeholder="Enter target domain (e.g. scanme.nmap.org or example.com)..."
+                    required
+                >
+                <button type="submit" class="btn-cyber-primary" style="white-space: nowrap;">
+                    🚀 Run Audit
+                </button>
+            </form>
+
+            <div style="font-size: 13px; color: var(--text-muted); display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+                <span>✓ Non-invasive Safe Scans</span>
+                <span>✓ Instant Executive PDF Reports</span>
+                <span>✓ OWASP Top 10 Aligned</span>
+            </div>
+        </section>
+
+        <!-- Stats Ticker -->
+        <div class="stats-ticker">
+            <div class="ticker-card">
+                <div class="ticker-num">1.2s</div>
+                <div class="ticker-label">Multi-Threaded Scan Speed</div>
+            </div>
+            <div class="ticker-card">
+                <div class="ticker-num">30+</div>
+                <div class="ticker-label">Services & Ports Audited</div>
+            </div>
+            <div class="ticker-card">
+                <div class="ticker-num">99.8%</div>
+                <div class="ticker-label">Threat Detection Accuracy</div>
+            </div>
+            <div class="ticker-card">
+                <div class="ticker-num">24/7</div>
+                <div class="ticker-label">Continuous Watchlist Recon</div>
+            </div>
+        </div>
+
+        <!-- Product Modules Grid -->
+        <section style="text-align: center; margin-bottom: 60px;">
+            <div class="cyber-badge" style="margin-bottom: 12px;">ENTERPRISE CYBERSECURITY PLATFORM</div>
+            <h2 style="font-family: var(--font-display); font-size: 32px; font-weight: 800; margin-bottom: 10px;">
+                Comprehensive Threat Intelligence Suite
+            </h2>
+            <p style="color: var(--text-dim); max-width: 600px; margin: 0 auto 30px;">
+                Engineered for security engineers, DevOps, and CTOs to automate perimeter risk management.
+            </p>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <div class="feature-title">External Attack Surface (EASM)</div>
+                    <div class="feature-desc">Discover exposed services, database ports, and administrative routes with automated parallel multi-threading.</div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🔑</div>
+                    <div class="feature-title">SSL / TLS Cipher Auditor</div>
+                    <div class="feature-desc">Continuous TLS handshake inspection, certificate chain validation, and proactive expiration alerts.</div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🚨</div>
+                    <div class="feature-title">Secret & Dotfile Leak Finder</div>
+                    <div class="feature-desc">Detect dangerous exposed files like <code>.env</code>, <code>.git/HEAD</code>, and unprotected backup archives.</div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <div class="feature-title">OWASP Defense Headers</div>
+                    <div class="feature-desc">Detailed compliance grading against HSTS, CSP, Clickjacking, and MIME-sniffing misconfigurations.</div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">⚔️</div>
+                    <div class="feature-title">Scan Diff & Comparison</div>
+                    <div class="feature-desc">Compare security posture before and after patches to verify remediations and catch regressions.</div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <div class="feature-title">CI/CD & Developer APIs</div>
+                    <div class="feature-desc">Integrate security scans into GitHub Actions and CI pipelines with custom API keys and webhooks.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Callout -->
+        <section style="background: linear-gradient(135deg, rgba(0,240,255,0.1), rgba(112,0,255,0.1)); border: 1px solid var(--card-border); border-radius: 16px; padding: 50px 30px; text-align: center; max-width: 900px; margin: 40px auto 80px;">
+            <h2 style="font-family: var(--font-display); font-size: 32px; font-weight: 800; margin-bottom: 12px;">
+                Ready to Secure Your Attack Surface?
+            </h2>
+            <p style="color: var(--text-dim); max-width: 550px; margin: 0 auto 24px;">
+                Join thousands of security leaders using VulnEye to monitor and defend their digital assets.
+            </p>
+            <div style="display: flex; justify-content: center; gap: 14px;">
+                <a href="/login" class="btn-cyber-primary" style="padding: 12px 28px; font-size: 15px;">Get Started Free ⚡</a>
+                <a href="/tools" class="btn-cyber-secondary" style="padding: 12px 28px; font-size: 15px;">Explore Free Tools</a>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="{{ url_for('static', filename='cyber-effects.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Developer API Documentation - VulnEye CyberSentinel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .docs-container {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            gap: 32px;
+            max-width: 1100px;
+            margin: 40px auto;
+        }
+        .docs-sidebar {
+            position: sticky;
+            top: 90px;
+            height: fit-content;
+        }
+        .docs-nav-link {
+            display: block;
+            padding: 8px 12px;
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 13.5px;
+            border-radius: 8px;
+            margin-bottom: 4px;
+            transition: all 0.2s ease;
+        }
+        .docs-nav-link:hover, .docs-nav-link.active {
+            color: var(--primary-cyan);
+            background: rgba(0, 240, 255, 0.08);
+        }
+        .code-snippet {
+            background: #090d16;
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 16px;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: #38bdf8;
+            overflow-x: auto;
+            margin: 12px 0 24px;
+        }
+        .endpoint-badge {
+            background: rgba(0, 240, 255, 0.15);
+            color: var(--primary-cyan);
+            font-family: var(--font-mono);
+            font-weight: 800;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        @media (max-width: 800px) {
+            .docs-container { grid-template-columns: 1fr; }
+            .docs-sidebar { display: none; }
+        }
+    </style>
+</head>
+<body class="dark">
+
+    <div class="ambient-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Cyber Navbar -->
+    <header class="navbar">
+        <a href="/" class="logo">
+            <div class="logo-shield">🛡️</div>
+            <span class="logo-text">VulnEye</span>
+        </a>
+
+        <div class="nav-links">
+            <a href="/tools" class="nav-link">🧰 Free Tools</a>
+            <a href="/pricing" class="nav-link">💳 Pricing</a>
+            <a href="/docs" class="nav-link active">📖 API Docs</a>
+            {% if session.get('logged_in') %}
+            <a href="/dashboard" class="btn-cyber-primary" style="padding: 8px 18px;">SOC Dashboard →</a>
+            {% else %}
+            <a href="/login" class="btn-cyber-primary" style="padding: 8px 18px;">Sign In ↗</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <main class="main-content">
+        
+        <div class="docs-container">
+            
+            <!-- Sidebar -->
+            <aside class="docs-sidebar">
+                <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px;">
+                    API REFERENCE v1
+                </div>
+                <a href="#overview" class="docs-nav-link active">1. Overview & Auth</a>
+                <a href="#endpoint-health" class="docs-nav-link">2. Health Endpoint</a>
+                <a href="#endpoint-scan" class="docs-nav-link">3. Trigger Security Scan</a>
+                <a href="#endpoint-history" class="docs-nav-link">4. Fetch Scan History</a>
+                <a href="#cicd" class="docs-nav-link">5. GitHub Actions Integration</a>
+            </aside>
+
+            <!-- Main Docs Content -->
+            <div class="docs-content">
+                
+                <section id="overview" style="margin-bottom: 40px;">
+                    <div class="cyber-badge">REST API SPECIFICATION</div>
+                    <h1 style="font-family: var(--font-display); font-size: 32px; font-weight: 800; margin: 10px 0;">
+                        VulnEye Developer & CI/CD API
+                    </h1>
+                    <p style="color: var(--text-dim); line-height: 1.6;">
+                        Seamlessly trigger security scans and automate penetration tests directly from your terminal, deployment scripts, or CI/CD pipelines.
+                    </p>
+
+                    <h3 style="margin-top: 24px;">Authentication</h3>
+                    <p style="color: var(--text-dim); font-size: 14px;">
+                        Pass your personal API key via HTTP Bearer token in the <code>Authorization</code> header:
+                    </p>
+                    <div class="code-snippet">Authorization: Bearer vye_live_your_api_key_here</div>
+                </section>
+
+                <hr style="border: 0; border-top: 1px solid var(--card-border); margin: 30px 0;">
+
+                <!-- Endpoint 1: Health -->
+                <section id="endpoint-health" style="margin-bottom: 40px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <span class="endpoint-badge" style="background: rgba(0, 255, 157, 0.15); color: #00ff9d;">GET</span>
+                        <code style="font-size: 16px; font-weight: 700;">/api/v1/health</code>
+                    </div>
+                    <p style="color: var(--text-dim); font-size: 14px;">Check sentinel daemon uptime and API operational status.</p>
+                    
+                    <div class="code-snippet">curl -X GET "http://127.0.0.1:5000/api/v1/health"</div>
+                </section>
+
+                <!-- Endpoint 2: Scan -->
+                <section id="endpoint-scan" style="margin-bottom: 40px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <span class="endpoint-badge">POST</span>
+                        <code style="font-size: 16px; font-weight: 700;">/api/v1/scan</code>
+                    </div>
+                    <p style="color: var(--text-dim); font-size: 14px;">Execute high-speed multi-threaded vulnerability scan on a target URL.</p>
+
+                    <div class="code-snippet">curl -X POST "http://127.0.0.1:5000/api/v1/scan" \
+     -H "Authorization: Bearer vye_live_your_key" \
+     -H "Content-Type: application/json" \
+     -d '{"url": "https://scanme.nmap.org"}'</div>
+                </section>
+
+                <!-- Endpoint 3: History -->
+                <section id="endpoint-history" style="margin-bottom: 40px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <span class="endpoint-badge" style="background: rgba(0, 255, 157, 0.15); color: #00ff9d;">GET</span>
+                        <code style="font-size: 16px; font-weight: 700;">/api/v1/history</code>
+                    </div>
+                    <p style="color: var(--text-dim); font-size: 14px;">Fetch past security audit logs for the authenticated organization.</p>
+
+                    <div class="code-snippet">curl -X GET "http://127.0.0.1:5000/api/v1/history" \
+     -H "Authorization: Bearer vye_live_your_key"</div>
+                </section>
+
+                <!-- CI/CD Integration -->
+                <section id="cicd" style="margin-bottom: 60px;">
+                    <h3>GitHub Actions Automated PenTest Pipeline</h3>
+                    <p style="color: var(--text-dim); font-size: 14px; margin-bottom: 12px;">
+                        Add this step to your <code>.github/workflows/security.yml</code>:
+                    </p>
+
+                    <div class="code-snippet">{% raw %}name: VulnEye Security Audit
+on: [push]
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger VulnEye Attack Surface Audit
+        run: |
+          curl -X POST "https://vulneye.yourdomain.com/api/v1/scan" \
+            -H "Authorization: Bearer ${{ secrets.VULNEYE_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"url": "https://staging.mycompany.com"}'{% endraw %}</div>
+                </section>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <script src="{{ url_for('static', filename='cyber-effects.js') }}"></script>
+</body>
+</html>

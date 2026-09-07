@@ -7,6 +7,33 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <!-- Load ApexCharts CDN -->
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <style>
+        .tech-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--primary-cyan);
+            border: 1px solid rgba(0, 240, 255, 0.25);
+            margin: 3px;
+        }
+        .severity-badge {
+            font-size: 10px;
+            font-family: var(--font-mono);
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
+        }
+        .sev-high { background: rgba(255, 42, 95, 0.2); color: #ff2a5f; border: 1px solid rgba(255, 42, 95, 0.4); }
+        .sev-medium { background: rgba(255, 183, 3, 0.2); color: #ffb703; border: 1px solid rgba(255, 183, 3, 0.4); }
+        .sev-info { background: rgba(0, 240, 255, 0.2); color: #00f0ff; border: 1px solid rgba(0, 240, 255, 0.4); }
+    </style>
 </head>
 <body class="dark">
 
@@ -25,23 +52,67 @@
         </a>
 
         <div class="nav-links">
-            <a href="/" class="nav-link">🎯 New Scan</a>
-            <a href="/history" class="nav-link">📜 Scan History</a>
-            
-            {% if session.get('user') %}
-            <div class="user-profile-badge">
-                <img src="{{ session['user'].get('picture') }}" class="user-profile-avatar" alt="Avatar">
-                <span>{{ session['user'].get('name') }}</span>
-            </div>
-            {% endif %}
+            <a href="/dashboard" class="nav-link">📊 Dashboard</a>
+            <a href="/scan" class="nav-link">🎯 Scan</a>
+            <a href="/analyzer?url={{ results.url|urlencode }}" class="nav-link">🤖 Report AI Explainer</a>
+            <a href="/guide" class="nav-link">📖 Security Handbook</a>
+            <a href="/history" class="nav-link">📜 History</a>
+        </div>
 
+        <div class="navbar-actions">
             <button onclick="toggleAudio()" class="navbar-btn" id="audioToggleBtn" title="Toggle SFX">
                 🔊 <span>SFX</span>
             </button>
             <button onclick="toggleDark()" class="navbar-btn" id="themeBtn">
                 <span id="themeIcon">☀️</span> <span id="themeText">Light</span>
             </button>
-            <a href="/logout" class="nav-link" style="color: var(--color-danger);">Logout</a>
+
+            {% if session.get('user') %}
+            <div class="user-profile-dropdown" id="userProfileDropdown">
+                <button type="button" class="user-profile-badge avatar-only" id="userProfileBtn" onclick="toggleUserProfileMenu(event)" title="{{ session['user'].get('name') }} (Account Profile)">
+                    <img src="{{ session['user'].get('picture') }}" class="user-profile-avatar" alt="Avatar">
+                    <span class="user-online-status-dot"></span>
+                </button>
+
+                <div class="user-profile-menu" id="userProfileMenu">
+                    <div class="profile-menu-header">
+                        <img src="{{ session['user'].get('picture') }}" class="profile-menu-avatar-lg" alt="Avatar">
+                        <div class="profile-menu-info">
+                            <div class="profile-menu-fullname">{{ session['user'].get('name') }}</div>
+                            <div class="profile-menu-email">{{ session['user'].get('email', '') }}</div>
+                            <span class="profile-menu-badge-pill">🛡️ {{ session.get('user', {}).get('plan', 'PRO PLAN')|upper }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-quick-stats">
+                        <div class="profile-stat-item">
+                            <span class="profile-stat-label">Clearance</span>
+                            <span class="profile-stat-val">Verified SecOps</span>
+                        </div>
+                        <div class="profile-stat-item">
+                            <span class="profile-stat-label">Telemetry</span>
+                            <span class="profile-stat-val">24/7 Active</span>
+                        </div>
+                    </div>
+
+                    <div class="profile-menu-links">
+                        <a href="/settings" class="profile-menu-link">⚙️ <span>Account & API Keys</span></a>
+                        <a href="/dashboard" class="profile-menu-link">📊 <span>SOC Dashboard</span></a>
+                        <a href="/history" class="profile-menu-link">📜 <span>Scan History</span></a>
+                        <a href="/monitoring" class="profile-menu-link">🔄 <span>Watchlist Monitor</span></a>
+                        <a href="/pricing" class="profile-menu-link">💳 <span>Upgrade & Billing</span></a>
+                        <a href="/tools" class="profile-menu-link">🧰 <span>Free Cyber Tools</span></a>
+                    </div>
+
+                    <div class="profile-menu-divider"></div>
+
+                    <a href="/logout" class="profile-menu-logout">
+                        <span>🚪 Logout</span>
+                        <span style="font-size: 10px; opacity: 0.8; font-family: var(--font-mono);">SIGN OUT</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </header>
 
@@ -54,11 +125,14 @@
                 <h2>⚡ SECURITY AUDIT DOSSIER</h2>
                 <h1>{{ results.url }}</h1>
                 <p style="color: var(--text-dim); font-size: 13px; font-family: var(--font-mono); margin-top: 6px;">
-                    Target Reachability: <span class="{{ 'good' if results.reachable else 'bad' }}">{{ "ONLINE (200 OK)" if results.reachable else "OFFLINE" }}</span>
+                    Target Reachability: <span class="{{ 'good' if results.reachable else 'bad' }}">{{ "ONLINE (" ~ results.status_code ~ ")" if results.reachable else "OFFLINE / ERROR" }}</span>
+                    {% if results.host_info and results.host_info.ip != 'Unknown' %}
+                    &nbsp;|&nbsp; IP: <strong style="color: var(--primary-cyan);">{{ results.host_info.ip }}</strong> ({{ results.host_info.reverse_dns }})
+                    {% endif %}
                 </p>
             </div>
 
-            <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                 <!-- Security Grade Card -->
                 <div class="grade-badge-card">
                     <div>
@@ -72,18 +146,33 @@
                     </div>
                 </div>
 
+                <!-- AI Explainer Button -->
+                <a href="/analyzer?url={{ results.url|urlencode }}" class="btn-cyber-primary" style="padding: 10px 16px; display: inline-flex; align-items: center; gap: 6px;">
+                    🤖 Explain in Plain Hindi/English
+                </a>
+
                 <!-- Export PDF Button -->
                 <form action="/export-pdf" method="POST" style="margin: 0;">
                     <input type="hidden" name="url" value="{{ results.url }}">
-                    <button type="submit" class="btn-cyber-primary">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <button type="submit" class="btn-cyber-secondary" style="padding: 10px 14px;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="7 10 12 15 17 10"></polyline>
                             <line x1="12" y1="15" x2="12" y2="3"></line>
                         </svg>
-                        Export PDF
+                        PDF
                     </button>
                 </form>
+
+                <!-- Export JSON Button -->
+                <a href="/export/json?url={{ results.url|urlencode }}" class="btn-cyber-secondary" style="display: inline-flex; align-items: center; gap: 6px; padding: 10px 14px;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    JSON
+                </a>
             </div>
         </section>
 
@@ -116,7 +205,7 @@
                     <span>🌐</span>
                 </div>
                 <p class="metric-num good">{{ results.status_code if results.status_code else "Offline" }}</p>
-                <span style="font-size: 12px; color: var(--text-dim);">HTTP Response Code</span>
+                <span style="font-size: 12px; color: var(--text-dim);">HTTP Status Code</span>
             </div>
 
             <div class="summary-card">
@@ -153,9 +242,75 @@
             </div>
         </div>
 
+        <!-- Detected Tech Stack & Server Fingerprint -->
+        {% if results.tech_stack %}
+        <div class="detail-card" style="margin-bottom: 24px;">
+            <div class="detail-card-title">
+                <h3>🔍 Technology Stack Fingerprint</h3>
+                <span class="step-badge">{{ results.tech_stack|length }} Technologies Identified</span>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">
+                {% for tech in results.tech_stack %}
+                    <span class="tech-pill">⚡ {{ tech }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Detailed Findings & Actionable Remediation -->
         <div class="details-grid">
             
+            <!-- SSL / TLS Certificate Analysis -->
+            {% if results.https and results.ssl_certificate %}
+            <div class="detail-card">
+                <div class="detail-card-title">
+                    <h3>🔑 TLS Certificate Audit</h3>
+                    <span class="step-badge {{ 'good' if results.ssl_certificate.valid else 'bad' }}">
+                        {{ "VALID" if results.ssl_certificate.valid else "INVALID / EXPIRED" }}
+                    </span>
+                </div>
+                <ul>
+                    <li class="finding-item">
+                        <span><strong>Issuer Organization:</strong> {{ results.ssl_certificate.issuer }}</span>
+                    </li>
+                    <li class="finding-item">
+                        <span><strong>Protocol Version:</strong> {{ results.ssl_certificate.protocol_version }}</span>
+                    </li>
+                    <li class="finding-item">
+                        <span><strong>Expiration Date:</strong> {{ results.ssl_certificate.expiry_date }}</span>
+                        <span style="font-family: var(--font-mono); font-size: 11px; color: {{ 'var(--color-success)' if results.ssl_certificate.days_remaining > 30 else 'var(--color-danger)' }};">
+                            {{ results.ssl_certificate.days_remaining }} days left
+                        </span>
+                    </li>
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Sensitive Files Exposure -->
+            <div class="detail-card">
+                <div class="detail-card-title">
+                    <h3>🚨 Sensitive File & Source Leaks</h3>
+                    <span class="step-badge {{ 'bad' if results.sensitive_files else 'good' }}">{{ results.sensitive_files|length if results.sensitive_files else 0 }} Leaks</span>
+                </div>
+                <ul>
+                    {% if results.sensitive_files %}
+                        {% for leak in results.sensitive_files %}
+                            <li class="finding-item danger-finding">
+                                <div>
+                                    <span>⚠️ <code>{{ leak.file }}</code></span>
+                                    <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">{{ leak.description }}</div>
+                                </div>
+                                <span class="severity-badge sev-{{ leak.severity|lower }}">{{ leak.severity }}</span>
+                            </li>
+                        {% endfor %}
+                    {% else %}
+                        <li class="finding-item success-finding">
+                            <span>✓ No exposed .env, .git, or backup files discovered.</span>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+
             <!-- Missing Security Headers -->
             <div class="detail-card">
                 <div class="detail-card-title">
@@ -172,7 +327,7 @@
                         {% endfor %}
                     {% else %}
                         <li class="finding-item success-finding">
-                            <span>✓ All critical OWASP security headers verified!</span>
+                            <span>✓ All critical OWASP security defense headers configured.</span>
                         </li>
                     {% endif %}
                 </ul>
@@ -186,15 +341,45 @@
                 </div>
                 <ul>
                     {% if results.open_ports %}
-                        {% for port in results.open_ports %}
+                        {% for p in results.open_ports %}
                             <li class="finding-item danger-finding">
-                                <span>🚨 Port <strong>{{ port }}</strong> is publicly open</span>
+                                <span>🚨 Port <strong>{{ p.port if p is mapping else p }}</strong> ({{ p.service if p is mapping else 'TCP' }})</span>
                                 <span style="font-size: 11px; font-family: var(--font-mono);">EXPOSED</span>
                             </li>
                         {% endfor %}
                     {% else %}
                         <li class="finding-item success-finding">
                             <span>✓ Zero exposed database or management ports discovered.</span>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+
+            <!-- Cookie Security & CORS -->
+            <div class="detail-card">
+                <div class="detail-card-title">
+                    <h3>🍪 Cookies & CORS Policy</h3>
+                    <span class="step-badge">{{ "MISCONFIGURED" if results.cors and results.cors.misconfigured else "AUDITED" }}</span>
+                </div>
+                <ul>
+                    {% if results.cors and results.cors.misconfigured %}
+                    <li class="finding-item danger-finding">
+                        <span>⚠️ CORS Risk: {{ results.cors.risk_details }}</span>
+                        <span class="severity-badge sev-high">High</span>
+                    </li>
+                    {% endif %}
+                    {% if results.cookies %}
+                        {% for c in results.cookies %}
+                            {% for iss in c.issues %}
+                            <li class="finding-item danger-finding">
+                                <span>🍪 Cookie <code>{{ c.name }}</code>: {{ iss }}</span>
+                                <span class="severity-badge sev-medium">Medium</span>
+                            </li>
+                            {% endfor %}
+                        {% endfor %}
+                    {% else %}
+                        <li class="finding-item success-finding">
+                            <span>✓ No insecure session cookies or CORS vulnerabilities detected.</span>
                         </li>
                     {% endif %}
                 </ul>
@@ -208,10 +393,10 @@
                 </div>
                 <ul>
                     {% if results.found_directories %}
-                        {% for directory in results.found_directories %}
+                        {% for dir in results.found_directories %}
                             <li class="finding-item danger-finding">
-                                <span>📂 <code>{{ directory }}</code></span>
-                                <span style="font-size: 11px; font-family: var(--font-mono);">HTTP 200</span>
+                                <span>📂 <code>{{ dir.path if dir is mapping else dir }}</code></span>
+                                <span style="font-size: 11px; font-family: var(--font-mono);">HTTP {{ dir.status if dir is mapping else '200' }}</span>
                             </li>
                         {% endfor %}
                     {% else %}
@@ -265,6 +450,7 @@
         const missingHeadersCount = {{ results.missing_headers|length if results.missing_headers else 0 }};
         const openPortsCount = {{ results.open_ports|length if results.open_ports else 0 }};
         const foundDirsCount = {{ results.found_directories|length if results.found_directories else 0 }};
+        const sensitiveCount = {{ results.sensitive_files|length if results.sensitive_files else 0 }};
         const riskLevel = "{{ results.risk }}";
 
         let complianceChart = null;
@@ -298,6 +484,7 @@
             if (missingHeadersCount === 0) passed++; else flagged++;
             if (openPortsCount === 0) passed++; else flagged++;
             if (foundDirsCount === 0) passed++; else flagged++;
+            if (sensitiveCount === 0) passed++; else flagged++;
 
             // 1. Compliance Radial Gauge
             const complianceOptions = {

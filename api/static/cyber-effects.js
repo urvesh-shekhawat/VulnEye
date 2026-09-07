@@ -154,11 +154,13 @@
     }
 
     // ----------------------------------------------------
-    // 2. Sci-Fi Cyber Sound Synthesizer (Web Audio API)
+    // 2. High-Tech Cyber Sound Synthesizer (Web Audio API)
     // ----------------------------------------------------
     class CyberSound {
         constructor() {
-            this.enabled = localStorage.getItem('vulneye_audio') === 'true';
+            const savedAudio = localStorage.getItem('vulneye_audio');
+            // Default to Enabled (true)
+            this.enabled = savedAudio === null ? true : savedAudio === 'true';
             this.audioCtx = null;
         }
 
@@ -170,67 +172,189 @@
             if (this.audioCtx && this.audioCtx.state === 'suspended') {
                 this.audioCtx.resume();
             }
+            return this.audioCtx;
         }
 
         toggle() {
+            const ctx = this.initContext();
+            if (ctx && ctx.state === 'suspended') {
+                ctx.resume();
+            }
             this.enabled = !this.enabled;
             localStorage.setItem('vulneye_audio', this.enabled);
+            
             if (this.enabled) {
-                this.initContext();
-                this.playBeep(880, 0.08, 'sine');
+                this.playToggle(true);
+                this.showAudioToast('🔊 Cyber SFX: ENABLED');
+            } else {
+                this.playToggle(false);
+                this.showAudioToast('🔇 Cyber SFX: MUTED');
             }
             return this.enabled;
         }
 
-        playBeep(freq = 600, duration = 0.05, type = 'sine', vol = 0.05) {
-            if (!this.enabled) return;
-            try {
-                this.initContext();
-                if (!this.audioCtx) return;
-
-                const osc = this.audioCtx.createOscillator();
-                const gain = this.audioCtx.createGain();
-
-                osc.type = type;
-                osc.frequency.setValueAtTime(freq, this.audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(freq * 0.5, this.audioCtx.currentTime + duration);
-
-                gain.gain.setValueAtTime(vol, this.audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.0001, this.audioCtx.currentTime + duration);
-
-                osc.connect(gain);
-                gain.connect(this.audioCtx.destination);
-
-                osc.start();
-                osc.stop(this.audioCtx.currentTime + duration);
-            } catch (e) {
-                // Ignore audio restriction errors
+        showAudioToast(msg) {
+            let toast = document.getElementById('vulneye-audio-toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'vulneye-audio-toast';
+                toast.className = 'cyber-audio-toast';
+                document.body.appendChild(toast);
             }
+            toast.textContent = msg;
+            toast.classList.add('visible');
+            clearTimeout(toast._timeout);
+            toast._timeout = setTimeout(() => {
+                toast.classList.remove('visible');
+            }, 1800);
         }
 
-        playScanPing() {
+        // Generic Tone Synthesizer with Attack-Decay Envelope and Audible Gain
+        playTone(freq = 600, duration = 0.08, type = 'sine', vol = 0.25, endFreq = null) {
             if (!this.enabled) return;
             try {
-                this.initContext();
-                if (!this.audioCtx) return;
+                const ctx = this.initContext();
+                if (!ctx) return;
 
+                if (ctx.state === 'suspended') {
+                    ctx.resume().then(() => this._executeTone(freq, duration, type, vol, endFreq));
+                } else {
+                    this._executeTone(freq, duration, type, vol, endFreq);
+                }
+            } catch (e) {}
+        }
+
+        _executeTone(freq, duration, type, vol, endFreq) {
+            try {
                 const now = this.audioCtx.currentTime;
                 const osc = this.audioCtx.createOscillator();
                 const gain = this.audioCtx.createGain();
 
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(1200, now);
-                osc.frequency.exponentialRampToValueAtTime(400, now + 0.25);
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, now);
+                if (endFreq) {
+                    osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), now + duration);
+                }
 
-                gain.gain.setValueAtTime(0.08, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                // Attack-Decay Envelope
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.linearRampToValueAtTime(vol, now + 0.012);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
                 osc.connect(gain);
                 gain.connect(this.audioCtx.destination);
 
                 osc.start(now);
-                osc.stop(now + 0.25);
+                osc.stop(now + duration + 0.02);
             } catch (e) {}
+        }
+
+        // 1. Futuristic Button Hover Chirp (Clearly Audible)
+        playHover() {
+            this.playTone(720, 0.06, 'sine', 0.18, 1100);
+        }
+
+        // 2. Crisp Futuristic Click
+        playClick() {
+            this.playTone(1200, 0.08, 'triangle', 0.28, 320);
+        }
+
+        // 3. Audio Toggle Sound (Ascending for ON, Descending for OFF)
+        playToggle(isOn) {
+            if (!this.enabled && isOn === undefined) return;
+            try {
+                const ctx = this.initContext();
+                if (!ctx) return;
+                
+                const triggerChime = () => {
+                    const now = this.audioCtx.currentTime;
+                    if (isOn) {
+                        // Ascending Power-Up 3-tone Chime
+                        [587.33, 880, 1174.66].forEach((freq, idx) => {
+                            const osc = this.audioCtx.createOscillator();
+                            const gain = this.audioCtx.createGain();
+                            osc.type = 'triangle';
+                            osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+                            gain.gain.setValueAtTime(0.001, now + idx * 0.06);
+                            gain.gain.linearRampToValueAtTime(0.24, now + idx * 0.06 + 0.015);
+                            gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.06 + 0.14);
+                            osc.connect(gain);
+                            gain.connect(this.audioCtx.destination);
+                            osc.start(now + idx * 0.06);
+                            osc.stop(now + idx * 0.06 + 0.16);
+                        });
+                    } else {
+                        // Descending Power-Down
+                        this.playTone(950, 0.15, 'sawtooth', 0.2, 220);
+                    }
+                };
+
+                if (ctx.state === 'suspended') {
+                    ctx.resume().then(triggerChime);
+                } else {
+                    triggerChime();
+                }
+            } catch (e) {}
+        }
+
+        // 4. Modal / Dropdown Aperture Open/Close
+        playModal(isOpen = true) {
+            if (isOpen) {
+                this.playTone(380, 0.1, 'triangle', 0.24, 1050);
+            } else {
+                this.playTone(950, 0.09, 'sine', 0.2, 320);
+            }
+        }
+
+        // 5. Success Notification / Copy Chord
+        playSuccess() {
+            if (!this.enabled) return;
+            try {
+                const ctx = this.initContext();
+                if (!ctx) return;
+                
+                const triggerSuccess = () => {
+                    const now = this.audioCtx.currentTime;
+                    // Rich 3-Tone Major Chord (C5 -> E5 -> G5)
+                    [523.25, 659.25, 783.99].forEach((freq, i) => {
+                        const osc = this.audioCtx.createOscillator();
+                        const gain = this.audioCtx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now + i * 0.06);
+                        gain.gain.setValueAtTime(0.001, now + i * 0.06);
+                        gain.gain.linearRampToValueAtTime(0.28, now + i * 0.06 + 0.015);
+                        gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.06 + 0.28);
+                        osc.connect(gain);
+                        gain.connect(this.audioCtx.destination);
+                        osc.start(now + i * 0.06);
+                        osc.stop(now + i * 0.06 + 0.3);
+                    });
+                };
+
+                if (ctx.state === 'suspended') {
+                    ctx.resume().then(triggerSuccess);
+                } else {
+                    triggerSuccess();
+                }
+            } catch (e) {}
+        }
+
+        // 6. Sonar / Radar Ping
+        playScanPing() {
+            if (!this.enabled) return;
+            try {
+                this.playTone(1500, 0.35, 'sine', 0.3, 350);
+            } catch (e) {}
+        }
+
+        // 7. Data Stream / Keystroke Chirp
+        playKeystroke() {
+            this.playTone(1400 + Math.random() * 250, 0.035, 'triangle', 0.15, 800);
+        }
+
+        // Legacy compatibility
+        playBeep(freq = 600, duration = 0.08, type = 'sine', vol = 0.2) {
+            this.playTone(freq, duration, type, vol);
         }
     }
 
@@ -245,7 +369,11 @@
         const isDark = document.body.classList.contains('dark');
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
         updateThemeUI(isDark);
-        soundSynth.playBeep(isDark ? 650 : 900, 0.06);
+        if (isDark) {
+            soundSynth.playTone(450, 0.08, 'triangle', 0.07, 950);
+        } else {
+            soundSynth.playTone(950, 0.08, 'triangle', 0.07, 450);
+        }
 
         if (typeof window.updateChartsTheme === 'function') {
             window.updateChartsTheme(isDark);
@@ -270,27 +398,31 @@
 
     // Quick target chip filler helper
     window.setScanTarget = function (url) {
+        soundSynth.initContext();
         const input = document.querySelector('input[name="url"]');
         if (input) {
             input.value = '';
             let index = 0;
-            soundSynth.playBeep(750, 0.04);
+            soundSynth.playClick();
             const typeInterval = setInterval(() => {
                 if (index < url.length) {
                     input.value += url[index];
+                    soundSynth.playKeystroke();
                     index++;
                 } else {
                     clearInterval(typeInterval);
+                    soundSynth.playSuccess();
                     input.focus();
                 }
-            }, 25);
+            }, 30);
         }
     };
 
     // Copy to clipboard helper
     window.copyToClipboard = function (text, btnElement) {
+        soundSynth.initContext();
         navigator.clipboard.writeText(text).then(() => {
-            soundSynth.playBeep(1100, 0.08);
+            soundSynth.playSuccess();
             if (btnElement) {
                 const original = btnElement.innerHTML;
                 btnElement.innerHTML = '✓ Copied!';
@@ -303,11 +435,70 @@
         });
     };
 
-    // Interactive button audio binding
+    // User Profile Dropdown Toggle
+    window.toggleUserProfileMenu = function (e) {
+        soundSynth.initContext();
+        if (e) {
+            if (e.stopPropagation) e.stopPropagation();
+            if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+        }
+        const menu = document.getElementById('userProfileMenu');
+        const btn = document.getElementById('userProfileBtn');
+        if (menu) {
+            const isCurrentlyOpen = menu.classList.contains('show');
+            if (isCurrentlyOpen) {
+                menu.classList.remove('show');
+                if (btn) btn.classList.remove('active');
+                soundSynth.playModal(false);
+            } else {
+                menu.classList.add('show');
+                if (btn) btn.classList.add('active');
+                soundSynth.playModal(true);
+            }
+        }
+    };
+
+    // Global Click-Outside & Escape Handler to Close Dropdowns
+    document.addEventListener('click', (e) => {
+        const dropdown = document.getElementById('userProfileDropdown');
+        const menu = document.getElementById('userProfileMenu');
+        const btn = document.getElementById('userProfileBtn');
+        if (menu && dropdown && !dropdown.contains(e.target)) {
+            if (menu.classList.contains('show')) {
+                menu.classList.remove('show');
+                if (btn) btn.classList.remove('active');
+                soundSynth.playModal(false);
+            }
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const menu = document.getElementById('userProfileMenu');
+            const btn = document.getElementById('userProfileBtn');
+            if (menu && menu.classList.contains('show')) {
+                menu.classList.remove('show');
+                if (btn) btn.classList.remove('active');
+                soundSynth.playModal(false);
+            }
+        }
+    });
+
+    // Interactive button audio binding & UI initialization
     document.addEventListener('DOMContentLoaded', () => {
+        // Unlock Web Audio Context on first user interaction anywhere
+        const unlockAudio = () => {
+            soundSynth.initContext();
+            document.removeEventListener('click', unlockAudio);
+            document.removeEventListener('keydown', unlockAudio);
+            document.removeEventListener('touchstart', unlockAudio);
+        };
+        document.addEventListener('click', unlockAudio, { once: true, passive: true });
+        document.addEventListener('keydown', unlockAudio, { once: true, passive: true });
+        document.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
+
         // Theme initialization
         const savedTheme = localStorage.getItem('theme');
-        // Default to dark theme for high-tech cyber aesthetics unless explicitly set to light
         const isDark = savedTheme ? savedTheme === 'dark' : true;
         if (isDark) {
             document.body.classList.add('dark');
@@ -317,22 +508,43 @@
             updateThemeUI(false);
         }
 
-        // Initialize Audio toggle state
+        // Initialize Audio toggle button visual state
         const audioBtn = document.getElementById('audioToggleBtn');
         if (audioBtn) {
             audioBtn.innerHTML = soundSynth.enabled ? '🔊 <span>SFX On</span>' : '🔇 <span>SFX Off</span>';
             audioBtn.classList.toggle('active', soundSynth.enabled);
         }
 
-        // Initialize Canvas
+        // Initialize Cyber Canvas
         canvasInstance = new CyberCanvas();
 
-        // Button hover sound listeners
-        document.querySelectorAll('button, a.back-btn, a.google-btn, .quick-chip').forEach((el) => {
-            el.addEventListener('mouseenter', () => {
-                soundSynth.playBeep(520, 0.02, 'sine', 0.02);
-            });
+        // 1. Global Hover Sound Listeners for All Interactive Elements
+        document.addEventListener('mouseover', (e) => {
+            const target = e.target.closest('button, a, .nav-link, .quick-chip, .tool-card, .pricing-card, .payment-tab-btn, .history-row, .faq-item, .chip-tag, input[type="submit"]');
+            if (target && !target.dataset.sfxHoverBound) {
+                target.dataset.sfxHoverBound = 'true';
+                target.addEventListener('mouseenter', () => soundSynth.playHover());
+            }
         });
+
+        // 2. Global Click Sound for Action Elements
+        document.addEventListener('click', (e) => {
+            soundSynth.initContext();
+            const clickable = e.target.closest('button:not(#audioToggleBtn), a:not(#audioToggleBtn), .quick-chip, .payment-tab-btn, .faq-item');
+            if (clickable) {
+                soundSynth.playClick();
+            }
+        });
+
+        // 3. Keystroke sound on Search / Scan inputs
+        const targetInput = document.querySelector('input[name="url"], input[type="text"]');
+        if (targetInput) {
+            targetInput.addEventListener('keydown', (e) => {
+                if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter') {
+                    soundSynth.playKeystroke();
+                }
+            });
+        }
     });
 
     window.VulnEyeAudio = soundSynth;

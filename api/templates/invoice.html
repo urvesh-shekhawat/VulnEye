@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Receipt - {{ txn.transaction_id }} - VulnEye</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .invoice-paper {
+            background: #ffffff;
+            color: #0f172a;
+            max-width: 750px;
+            margin: 40px auto;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+            font-family: var(--font-sans);
+        }
+        .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 24px;
+            margin-bottom: 24px;
+        }
+        .paid-stamp {
+            border: 3px solid #059669;
+            color: #059669;
+            font-weight: 900;
+            font-size: 18px;
+            padding: 4px 16px;
+            border-radius: 8px;
+            transform: rotate(-6deg);
+            display: inline-block;
+            letter-spacing: 2px;
+        }
+        .invoice-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+        }
+        .invoice-table th {
+            background: #f8fafc;
+            color: #475569;
+            font-size: 12px;
+            font-weight: 700;
+            text-align: left;
+            padding: 10px 14px;
+            border-bottom: 1px solid #cbd5e1;
+            text-transform: uppercase;
+        }
+        .invoice-table td {
+            padding: 14px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 13.5px;
+        }
+        .print-btn {
+            background: #0f172a;
+            color: #ffffff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .print-btn:hover {
+            background: #334155;
+        }
+        @media print {
+            body { background: #fff !important; }
+            .navbar, .ambient-blobs, .no-print { display: none !important; }
+            .invoice-paper { box-shadow: none; margin: 0 auto; padding: 0; }
+        }
+    </style>
+</head>
+<body class="dark">
+
+    <div class="ambient-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <!-- Cyber Navbar -->
+    <header class="navbar no-print">
+        <a href="/" class="logo">
+            <div class="logo-shield">🛡️</div>
+            <span class="logo-text">VulnEye</span>
+        </a>
+
+        <div class="nav-links">
+            <a href="/dashboard" class="nav-link">📊 Dashboard</a>
+            <a href="/pricing" class="nav-link">💳 Plans</a>
+            <a href="/settings" class="nav-link">⚙️ Settings</a>
+        </div>
+    </header>
+
+    <main class="main-content">
+        
+        <div class="invoice-paper">
+            
+            <div class="invoice-header">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <span style="font-size: 24px;">🛡️</span>
+                        <h2 style="font-size: 22px; font-weight: 900; margin: 0; color: #0f172a;">VulnEye Security Inc.</h2>
+                    </div>
+                    <p style="font-size: 12px; color: #64748b; margin: 0; line-height: 1.5;">
+                        Enterprise Attack Surface Management<br>
+                        support@vulneye.sec • https://vulneye.com
+                    </p>
+                </div>
+
+                <div style="text-align: right;">
+                    <div class="paid-stamp">PAID ✓</div>
+                    <div style="font-size: 12px; color: #64748b; margin-top: 10px;">
+                        Date: <strong>{{ txn.created_at }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Meta details -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 13px; margin-bottom: 20px;">
+                <div>
+                    <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">BILLED TO:</div>
+                    <div style="font-weight: 800; font-size: 15px; color: #0f172a; margin-top: 4px;">{{ txn.user_email }}</div>
+                    <div style="color: #64748b;">Payment Method: {{ txn.payment_method }}</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">RECEIPT / TXN ID:</div>
+                    <div style="font-family: var(--font-mono); font-weight: 700; color: #0284c7; margin-top: 4px;">{{ txn.transaction_id }}</div>
+                    <div style="color: #64748b;">Status: <strong style="color: #059669;">COMPLETED</strong></div>
+                </div>
+            </div>
+
+            <!-- Line Items Table -->
+            <table class="invoice-table">
+                <thead>
+                    <tr>
+                        <th>DESCRIPTION</th>
+                        <th>CYCLE</th>
+                        <th style="text-align: right;">TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <strong style="color: #0f172a;">{{ txn.plan_name }} Subscription</strong><br>
+                            <span style="font-size: 12px; color: #64748b;">Automated Vulnerability Scanner & Enterprise Monitoring</span>
+                        </td>
+                        <td style="text-transform: capitalize; color: #475569;">{{ txn.billing_cycle }}</td>
+                        <td style="text-align: right; font-weight: 800; font-size: 15px; color: #0f172a;">{{ txn.amount }}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Summary Total -->
+            <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+                <div style="width: 250px; border-top: 2px solid #e2e8f0; padding-top: 12px; font-size: 14px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px; color: #64748b;">
+                        <span>Subtotal:</span>
+                        <span>{{ txn.amount }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px; color: #64748b;">
+                        <span>Taxes & Fees:</span>
+                        <span>$0.00</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 17px; font-weight: 900; color: #0f172a; border-top: 1px solid #cbd5e1; padding-top: 8px;">
+                        <span>Amount Paid:</span>
+                        <span style="color: #059669;">{{ txn.amount }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="no-print" style="margin-top: 40px; display: flex; justify-content: space-between; align-items: center;">
+                <a href="/dashboard" style="color: #0284c7; text-decoration: none; font-weight: 700; font-size: 13.5px;">
+                    ← Return to Dashboard
+                </a>
+                <button onclick="window.print()" class="print-btn">
+                    🖨️ Print / Download PDF Receipt
+                </button>
+            </div>
+
+        </div>
+
+    </main>
+
+</body>
+</html>

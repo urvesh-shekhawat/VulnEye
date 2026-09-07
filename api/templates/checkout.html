@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upgrade & Secure Checkout - VulnEye</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .checkout-layout {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 32px;
+            max-width: 1050px;
+            margin: 30px auto 60px;
+            align-items: flex-start;
+        }
+        .order-summary-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 28px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+        .payment-box-card {
+            background: var(--card-bg);
+            border: 1px solid var(--primary-cyan);
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 0 35px rgba(0, 240, 255, 0.12);
+            position: relative;
+        }
+        .pay-tab-container {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 12px;
+            overflow-x: auto;
+        }
+        .pay-tab {
+            background: var(--bg-surface);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .pay-tab.active {
+            background: rgba(0, 240, 255, 0.15);
+            border-color: var(--primary-cyan);
+            color: var(--primary-cyan);
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
+        }
+        .pay-panel {
+            display: none;
+        }
+        .pay-panel.active {
+            display: block;
+            animation: fadeIn 0.2s ease;
+        }
+        .input-cyber-group {
+            margin-bottom: 16px;
+        }
+        .input-cyber-group label {
+            display: block;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+        .cyber-field {
+            width: 100%;
+            background: #090d16;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-family: var(--font-mono);
+            font-size: 14px;
+            color: var(--text-main);
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        .cyber-field:focus {
+            border-color: var(--primary-cyan);
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.25);
+        }
+        .qr-wrapper {
+            background: #fff;
+            padding: 16px;
+            border-radius: 12px;
+            display: inline-block;
+            margin: 10px 0;
+            border: 2px solid var(--primary-cyan);
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.2);
+        }
+        /* Processing Overlay */
+        .processing-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(8, 12, 22, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            display: none;
+            text-align: center;
+            padding: 30px;
+        }
+        .success-box {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 820px) {
+            .checkout-layout { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body class="dark">
+
+    <div class="ambient-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Cyber Navbar -->
+    <header class="navbar">
+        <a href="/" class="logo">
+            <div class="logo-shield">🛡️</div>
+            <span class="logo-text">VulnEye</span>
+        </a>
+
+        <div class="nav-links">
+            <a href="/pricing" class="nav-link">💳 Plans</a>
+            <a href="/dashboard" class="nav-link">📊 Dashboard</a>
+            
+            <button onclick="toggleAudio()" class="navbar-btn" id="audioToggleBtn" title="Toggle SFX">
+                🔊 <span>SFX</span>
+            </button>
+            <button onclick="toggleDark()" class="navbar-btn" id="themeBtn">
+                <span id="themeIcon">☀️</span> <span id="themeText">Light</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="main-content">
+        
+        <div style="text-align: center; margin: 30px auto 10px;">
+            <div class="cyber-badge" style="margin-bottom: 8px;">ENCRYPTED 256-BIT TLS CHECKOUT</div>
+            <h1 style="font-family: var(--font-display); font-size: 32px; font-weight: 800;">
+                Upgrade Account to {{ plan_info.name }}
+            </h1>
+            <p style="color: var(--text-dim); font-size: 14px;">Instant activation with 100% money-back guarantee.</p>
+        </div>
+
+        <div class="checkout-layout">
+            
+            <!-- Left: Order Summary -->
+            <div class="order-summary-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <span style="font-size: 11px; font-weight: 800; color: var(--text-dim); letter-spacing: 1px;">PLAN SUMMARY</span>
+                    <span class="popular-badge" style="position: static; transform: none;">{{ cycle|upper }}</span>
+                </div>
+
+                <h2 style="font-size: 24px; font-weight: 800; color: var(--primary-cyan); margin-bottom: 6px;">
+                    {{ plan_info.name }}
+                </h2>
+                <div style="font-family: var(--font-display); font-size: 36px; font-weight: 900; margin-bottom: 16px;">
+                    {{ plan_info.amount }} <span style="font-size: 13px; font-weight: 500; color: var(--text-dim);">/ {{ 'month' if cycle == 'monthly' else 'year' }}</span>
+                </div>
+
+                <div style="border-top: 1px solid var(--card-border); padding-top: 16px; margin-bottom: 20px;">
+                    <div style="font-size: 12px; font-weight: 700; color: var(--text-dim); margin-bottom: 10px;">INCLUDED PRIVILEGES:</div>
+                    <ul style="list-style: none; padding: 0; margin: 0; font-size: 13px; color: var(--text-main); display: flex; flex-direction: column; gap: 8px;">
+                        {% for f in plan_info.features %}
+                        <li style="display: flex; align-items: center; gap: 8px;">
+                            <span style="color: #00ff9d; font-weight: 800;">✓</span> {{ f }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div style="background: rgba(0, 240, 255, 0.05); border: 1px dashed rgba(0, 240, 255, 0.3); border-radius: 10px; padding: 12px; font-size: 12px; color: var(--text-dim);">
+                    🔒 <strong>Enterprise SLA:</strong> 99.99% automated scanner uptime & SOC analyst priority support.
+                </div>
+            </div>
+
+            <!-- Right: Interactive Payment Box -->
+            <div class="payment-box-card" id="paymentBoxCard">
+                
+                <!-- Payment Method Tabs -->
+                <div class="pay-tab-container">
+                    <button type="button" class="pay-tab active" onclick="switchPayTab('card')">
+                        💳 Card
+                    </button>
+                    <button type="button" class="pay-tab" onclick="switchPayTab('upi')">
+                        📱 UPI / QR Code
+                    </button>
+                    <button type="button" class="pay-tab" onclick="switchPayTab('paypal')">
+                        🌐 PayPal
+                    </button>
+                    <button type="button" class="pay-tab" onclick="switchPayTab('crypto')">
+                        ⚡ Crypto
+                    </button>
+                </div>
+
+                <!-- Form Content -->
+                <form id="paymentForm" onsubmit="handlePaymentSubmit(event)">
+                    <input type="hidden" name="plan_name" id="planName" value="{{ plan_info.name }}">
+                    <input type="hidden" name="billing_cycle" id="billingCycle" value="{{ cycle }}">
+                    <input type="hidden" name="amount" id="amount" value="{{ plan_info.amount }}">
+                    <input type="hidden" name="payment_method" id="selectedMethod" value="Credit/Debit Card">
+
+                    <!-- Panel 1: Credit / Debit Card -->
+                    <div class="pay-panel active" id="panel-card">
+                        <div class="input-cyber-group">
+                            <label>CARDHOLDER NAME</label>
+                            <input type="text" class="cyber-field" id="cardName" placeholder="Urvesh Singh" required value="{{ session.get('user', {}).get('name', '') }}">
+                        </div>
+
+                        <div class="input-cyber-group">
+                            <label>CARD NUMBER</label>
+                            <input type="text" class="cyber-field" id="cardNumber" placeholder="4242 •••• •••• 4242" maxlength="19" required value="4242 8890 2314 9012">
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                            <div class="input-cyber-group">
+                                <label>EXPIRATION (MM/YY)</label>
+                                <input type="text" class="cyber-field" placeholder="12/28" maxlength="5" required value="12/28">
+                            </div>
+                            <div class="input-cyber-group">
+                                <label>CVC / CVV</label>
+                                <input type="password" class="cyber-field" placeholder="888" maxlength="4" required value="888">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel 2: UPI / QR Code (India & Instant QR) -->
+                    <div class="pay-panel" id="panel-upi">
+                        <div style="text-align: center;">
+                            <span style="font-size: 12px; color: var(--text-dim);">Scan with Google Pay, PhonePe, Paytm or BHIM:</span>
+                            <div class="qr-wrapper">
+                                <!-- Dynamic SVG QR Code Representation -->
+                                <svg width="150" height="150" viewBox="0 0 100 100" fill="#000">
+                                    <rect width="100" height="100" fill="#fff"/>
+                                    <path d="M10 10h30v30h-30zM60 10h30v30h-30zM10 60h30v30h-30zM20 20h10v10h-10zM70 20h10v10h-10zM20 70h10v10h-10zM45 15h10v10h-10zM45 35h10v10h-10zM15 45h10v10h-10zM35 45h10v10h-10zM55 45h10v10h-10zM75 45h10v10h-10zM45 65h10v10h-10zM65 65h10v10h-10zM45 85h10v10h-10zM65 85h25v5h-25zM85 65h5v20h-5z"/>
+                                </svg>
+                            </div>
+                            <div style="font-size: 13px; font-family: var(--font-mono); color: var(--primary-cyan); font-weight: 700; margin-bottom: 12px;">
+                                UPI ID: vulneye.secops@okicici
+                            </div>
+                        </div>
+                        <div class="input-cyber-group">
+                            <label>OR ENTER YOUR UPI VPA ID</label>
+                            <input type="text" class="cyber-field" placeholder="yourname@upi" value="user@okhdfcbank">
+                        </div>
+                    </div>
+
+                    <!-- Panel 3: PayPal -->
+                    <div class="pay-panel" id="panel-paypal">
+                        <div style="text-align: center; padding: 20px 0;">
+                            <div style="font-size: 40px; margin-bottom: 10px;">🅿️</div>
+                            <p style="font-size: 13.5px; color: var(--text-dim); margin-bottom: 16px;">
+                                You will be connected to PayPal's secure vault for instant express authorization.
+                            </p>
+                            <div class="input-cyber-group" style="text-align: left;">
+                                <label>PAYPAL EMAIL</label>
+                                <input type="email" class="cyber-field" value="{{ user_email }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel 4: Crypto -->
+                    <div class="pay-panel" id="panel-crypto">
+                        <div class="input-cyber-group">
+                            <label>SELECT ASSET</label>
+                            <select class="cyber-field">
+                                <option>USDT (TRC-20 / ERC-20)</option>
+                                <option>Bitcoin (BTC)</option>
+                                <option>Ethereum (ETH)</option>
+                                <option>Solana (SOL)</option>
+                            </select>
+                        </div>
+                        <div class="input-cyber-group">
+                            <label>DEPOSIT VAULT ADDRESS</label>
+                            <input type="text" class="cyber-field" readonly value="0x71C...VYE9028a47BF314">
+                        </div>
+                    </div>
+
+                    <!-- Submit Action Button -->
+                    <button type="submit" id="paySubmitBtn" class="btn-cyber-primary" style="width: 100%; padding: 14px; font-size: 15px; font-weight: 800; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span>⚡ Authorize & Pay {{ plan_info.amount }}</span>
+                    </button>
+                    
+                    <div style="text-align: center; margin-top: 12px; font-size: 11.5px; color: var(--text-dim);">
+                        🔒 End-to-end encrypted • Instant receipt generated
+                    </div>
+                </form>
+
+                <!-- Real-time Processing Overlay -->
+                <div class="processing-overlay" id="processingOverlay">
+                    <div class="cyber-loader-radar" style="width: 70px; height: 70px; margin-bottom: 16px;">
+                        <div class="radar-line"></div>
+                    </div>
+                    <h3 style="font-size: 18px; font-weight: 800; color: var(--primary-cyan); margin-bottom: 8px;" id="procTitle">
+                        Connecting to Secure Payment Gateway...
+                    </h3>
+                    <p style="font-size: 13px; color: var(--text-dim); max-width: 320px;" id="procDesc">
+                        Verifying 256-bit cryptographic signature and authorizing transaction...
+                    </p>
+                </div>
+
+                <!-- Success Screen Inside Modal -->
+                <div class="success-box" id="successBox">
+                    <div style="font-size: 50px; margin-bottom: 10px;">🎉</div>
+                    <h2 style="font-size: 24px; font-weight: 800; color: #00ff9d; margin-bottom: 8px;">
+                        Payment Successful!
+                    </h2>
+                    <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 18px;">
+                        Your account has been upgraded to <strong style="color: var(--primary-cyan);" id="succPlan">{{ plan_info.name }}</strong>.
+                    </p>
+
+                    <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--card-border); border-radius: 10px; padding: 14px; font-family: var(--font-mono); font-size: 12.5px; text-align: left; margin-bottom: 20px;">
+                        <div>TXN ID: <span style="color: #38bdf8;" id="succTxnId">TXN_VYE_...</span></div>
+                        <div>AMOUNT: <span style="color: #00ff9d;" id="succAmount">{{ plan_info.amount }}</span></div>
+                        <div>STATUS: <span style="color: #00ff9d;">COMPLETED</span></div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                        <a href="/dashboard" class="btn-cyber-primary" style="padding: 10px 20px;">
+                            📊 Open SOC Dashboard
+                        </a>
+                        <a href="#" id="succInvoiceBtn" class="btn-cyber-secondary" style="padding: 10px 18px;">
+                            📜 View Receipt
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <script src="{{ url_for('static', filename='cyber-effects.js') }}"></script>
+    <script>
+        function switchPayTab(type) {
+            document.querySelectorAll('.pay-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.pay-panel').forEach(p => p.classList.remove('active'));
+
+            const activeBtn = event.currentTarget;
+            activeBtn.classList.add('active');
+            document.getElementById('panel-' + type).classList.add('active');
+
+            const methodInput = document.getElementById('selectedMethod');
+            if (type === 'card') methodInput.value = 'Credit/Debit Card';
+            else if (type === 'upi') methodInput.value = 'UPI / QR Code';
+            else if (type === 'paypal') methodInput.value = 'PayPal';
+            else if (type === 'crypto') methodInput.value = 'Cryptocurrency (USDT/BTC)';
+
+            if (window.VulnEyeAudio) {
+                window.VulnEyeAudio.playBeep(700, 0.03);
+            }
+        }
+
+        function handlePaymentSubmit(e) {
+            e.preventDefault();
+
+            const overlay = document.getElementById('processingOverlay');
+            const procTitle = document.getElementById('procTitle');
+            const procDesc = document.getElementById('procDesc');
+            const form = document.getElementById('paymentForm');
+
+            overlay.style.display = 'flex';
+            if (window.VulnEyeAudio) {
+                window.VulnEyeAudio.playScanPing();
+            }
+
+            const payload = {
+                plan_name: document.getElementById('planName').value,
+                billing_cycle: document.getElementById('billingCycle').value,
+                amount: document.getElementById('amount').value,
+                payment_method: document.getElementById('selectedMethod').value
+            };
+
+            // Sequence simulated cyber processing stages for delightful UI feedback
+            setTimeout(() => {
+                procTitle.innerText = 'Enforcing 256-Bit Cryptographic Vault...';
+                procDesc.innerText = 'Authorizing bank token with zero-knowledge proof...';
+            }, 900);
+
+            setTimeout(() => {
+                procTitle.innerText = 'Upgrading Security Clearance...';
+                procDesc.innerText = 'Provisioning SOC2 compliance nodes & unlimited scan tokens...';
+            }, 1800);
+
+            // Execute actual backend payment call
+            setTimeout(() => {
+                fetch('/checkout/process', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                .then(res => res.json())
+                .then(data => {
+                    overlay.style.display = 'none';
+                    if (data.success) {
+                        form.style.display = 'none';
+                        document.querySelector('.pay-tab-container').style.display = 'none';
+                        
+                        document.getElementById('succTxnId').innerText = data.transaction_id;
+                        document.getElementById('succAmount').innerText = data.amount;
+                        document.getElementById('succPlan').innerText = data.plan;
+                        document.getElementById('succInvoiceBtn').href = data.invoice_url;
+                        
+                        document.getElementById('successBox').style.display = 'block';
+                        if (window.VulnEyeAudio) {
+                            window.VulnEyeAudio.playBeep(1200, 0.2);
+                        }
+                    } else {
+                        alert('Payment error: ' + (data.error || 'Failed to authorize payment'));
+                    }
+                })
+                .catch(err => {
+                    overlay.style.display = 'none';
+                    alert('Network error occurred during payment processing.');
+                });
+            }, 2500);
+        }
+    </script>
+</body>
+</html>

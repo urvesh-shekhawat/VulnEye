@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Continuous Asset Watchlist & 24/7 Monitoring - VulnEye</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="dark">
+
+    <div class="ambient-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Cyber Navbar -->
+    <header class="navbar">
+        <a href="/dashboard" class="logo">
+            <div class="logo-shield">🛡️</div>
+            <span class="logo-text">VulnEye</span>
+        </a>
+
+        <div class="nav-links">
+            <a href="/dashboard" class="nav-link">📊 Dashboard</a>
+            <a href="/scan" class="nav-link">🎯 Scan</a>
+            <a href="/analyzer" class="nav-link">🤖 Report AI Explainer</a>
+            <a href="/guide" class="nav-link">📖 Security Handbook</a>
+            <a href="/monitoring" class="nav-link active">🔄 Watchlist</a>
+            <a href="/compare" class="nav-link">⚔️ Compare</a>
+            <a href="/tools" class="nav-link">🧰 Tools</a>
+        </div>
+
+        <div class="navbar-actions">
+            <button onclick="toggleAudio()" class="navbar-btn" id="audioToggleBtn" title="Toggle SFX">
+                🔊 <span>SFX</span>
+            </button>
+            <button onclick="toggleDark()" class="navbar-btn" id="themeBtn">
+                <span id="themeIcon">☀️</span> <span id="themeText">Light</span>
+            </button>
+
+            {% if session.get('user') %}
+            <div class="user-profile-dropdown" id="userProfileDropdown">
+                <button type="button" class="user-profile-badge avatar-only" id="userProfileBtn" onclick="toggleUserProfileMenu(event)" title="{{ session['user'].get('name') }} (Account Profile)">
+                    <img src="{{ session['user'].get('picture') }}" class="user-profile-avatar" alt="Avatar">
+                    <span class="user-online-status-dot"></span>
+                </button>
+
+                <div class="user-profile-menu" id="userProfileMenu">
+                    <div class="profile-menu-header">
+                        <img src="{{ session['user'].get('picture') }}" class="profile-menu-avatar-lg" alt="Avatar">
+                        <div class="profile-menu-info">
+                            <div class="profile-menu-fullname">{{ session['user'].get('name') }}</div>
+                            <div class="profile-menu-email">{{ session['user'].get('email', '') }}</div>
+                            <span class="profile-menu-badge-pill">🛡️ {{ session.get('user', {}).get('plan', 'PRO PLAN')|upper }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-quick-stats">
+                        <div class="profile-stat-item">
+                            <span class="profile-stat-label">Clearance</span>
+                            <span class="profile-stat-val">Verified SecOps</span>
+                        </div>
+                        <div class="profile-stat-item">
+                            <span class="profile-stat-label">Telemetry</span>
+                            <span class="profile-stat-val">24/7 Active</span>
+                        </div>
+                    </div>
+
+                    <div class="profile-menu-links">
+                        <a href="/settings" class="profile-menu-link">⚙️ <span>Account & API Keys</span></a>
+                        <a href="/dashboard" class="profile-menu-link">📊 <span>SOC Dashboard</span></a>
+                        <a href="/history" class="profile-menu-link">📜 <span>Scan History</span></a>
+                        <a href="/monitoring" class="profile-menu-link">🔄 <span>Watchlist Monitor</span></a>
+                        <a href="/pricing" class="profile-menu-link">💳 <span>Upgrade & Billing</span></a>
+                        <a href="/tools" class="profile-menu-link">🧰 <span>Free Cyber Tools</span></a>
+                    </div>
+
+                    <div class="profile-menu-divider"></div>
+
+                    <a href="/logout" class="profile-menu-logout">
+                        <span>🚪 Logout</span>
+                        <span style="font-size: 10px; opacity: 0.8; font-family: var(--font-mono);">SIGN OUT</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </header>
+
+    <main class="main-content">
+        
+        <section class="results-hero-card" style="margin-bottom: 24px;">
+            <div>
+                <h2>🔄 CONTINUOUS DEFENSE</h2>
+                <h1>24/7 Attack Surface Watchlist</h1>
+                <p style="color: var(--text-dim); font-size: 13px; margin-top: 4px;">
+                    Automated periodic penetration tests & regression monitoring
+                </p>
+            </div>
+
+            <!-- Add Target Form -->
+            <form action="/monitoring/add" method="POST" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <input 
+                    type="text" 
+                    name="domain" 
+                    placeholder="domain.com (e.g. company.org)" 
+                    class="table-search-input" 
+                    style="width: 240px;" 
+                    required
+                >
+                <select name="frequency" class="table-search-input" style="width: 120px;">
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                </select>
+                <button type="submit" class="btn-cyber-primary" style="padding: 8px 16px;">+ Add Asset</button>
+            </form>
+        </section>
+
+        <!-- Monitored Assets Table -->
+        <div class="history-table-wrapper">
+            <table class="cyber-table">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">ID</th>
+                        <th>Monitored Domain Asset</th>
+                        <th style="width: 140px;">Audit Cadence</th>
+                        <th style="width: 140px; text-align: center;">Perimeter Health</th>
+                        <th style="width: 180px;">Added Date</th>
+                        <th style="width: 160px; text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if assets %}
+                        {% for asset in assets %}
+                        <tr>
+                            <td style="font-family: var(--font-mono); color: var(--text-dim);">#{{ asset.id }}</td>
+                            <td style="font-family: var(--font-mono); font-weight: 700; color: var(--primary-cyan);">
+                                {{ asset.domain }}
+                            </td>
+                            <td>
+                                <span class="step-badge">{{ asset.frequency|upper }}</span>
+                            </td>
+                            <td style="text-align: center;">
+                                <span class="good" style="font-weight: 700; font-size: 13px;">● {{ asset.status }}</span>
+                            </td>
+                            <td style="font-size: 12px; color: var(--text-dim); font-family: var(--font-mono);">
+                                {{ asset.created_at.strftime("%Y-%m-%d %H:%M") }}
+                            </td>
+                            <td style="text-align: right;">
+                                <div style="display: inline-flex; gap: 6px;">
+                                    <a href="/scan?url={{ asset.domain|urlencode }}" class="btn-cyber-primary" style="padding: 4px 10px; font-size: 11px;">
+                                        Audit 🚀
+                                    </a>
+                                    <a href="/monitoring/delete/{{ asset.id }}" onclick="return confirm('Remove asset from 24/7 monitoring?');" class="btn-cyber-secondary" style="padding: 4px 8px; font-size: 11px; color: var(--color-danger); border-color: rgba(255,42,95,0.3);">
+                                        ✕
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                                No assets configured in 24/7 watchlist. Add your first domain above!
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+    </main>
+
+    <script src="{{ url_for('static', filename='cyber-effects.js') }}"></script>
+</body>
+</html>

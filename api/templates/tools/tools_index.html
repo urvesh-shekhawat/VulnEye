@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Free Cyber Security Tools Suite - VulnEye</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            max-width: 900px;
+            margin: 30px auto;
+        }
+        .tool-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 24px;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: all 0.3s ease;
+        }
+        .tool-card:hover {
+            border-color: var(--primary-cyan);
+            transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(0, 240, 255, 0.1);
+        }
+        @media (max-width: 650px) {
+            .tools-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body class="dark">
+
+    <div class="ambient-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Cyber Navbar -->
+    <header class="navbar">
+        <a href="/" class="logo">
+            <div class="logo-shield">🛡️</div>
+            <span class="logo-text">VulnEye</span>
+        </a>
+
+        <div class="nav-links">
+            <a href="/tools" class="nav-link active">🧰 Free Tools</a>
+            <a href="/pricing" class="nav-link">💳 Pricing</a>
+            <a href="/docs" class="nav-link">📖 API Docs</a>
+            {% if session.get('logged_in') %}
+            <a href="/dashboard" class="btn-cyber-primary" style="padding: 8px 18px;">SOC Dashboard →</a>
+            {% else %}
+            <a href="/login" class="btn-cyber-primary" style="padding: 8px 18px;">Sign In ↗</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <main class="main-content">
+        
+        <div style="text-align: center; max-width: 650px; margin: 40px auto 20px;">
+            <div class="cyber-badge" style="margin-bottom: 10px;">COMMUNITY UTILITIES</div>
+            <h1 style="font-family: var(--font-display); font-size: 36px; font-weight: 800; margin-bottom: 8px;">
+                Free Cyber Security Utilities
+            </h1>
+            <p style="color: var(--text-dim); font-size: 15px;">
+                Instant online diagnostics for developers, sysadmins, and security analysts.
+            </p>
+        </div>
+
+        <div class="tools-grid">
+            
+            <a href="/tools/ssl-checker" class="tool-card">
+                <div>
+                    <div style="font-size: 32px; margin-bottom: 12px;">🔒</div>
+                    <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 6px;">SSL / TLS Certificate Inspector</h3>
+                    <p style="font-size: 13.5px; color: var(--text-dim); line-height: 1.5;">
+                        Check certificate chain validity, issuer details, protocol versions, and remaining expiration days.
+                    </p>
+                </div>
+                <div style="margin-top: 18px; font-weight: 700; color: var(--primary-cyan); font-size: 13px;">
+                    Launch Inspector →
+                </div>
+            </a>
+
+            <a href="/tools/headers-checker" class="tool-card">
+                <div>
+                    <div style="font-size: 32px; margin-bottom: 12px;">⚡</div>
+                    <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 6px;">OWASP Security Headers Grader</h3>
+                    <p style="font-size: 13.5px; color: var(--text-dim); line-height: 1.5;">
+                        Test HSTS, CSP, X-Frame-Options, and Referrer-Policy with instant remediation code snippets.
+                    </p>
+                </div>
+                <div style="margin-top: 18px; font-weight: 700; color: var(--primary-cyan); font-size: 13px;">
+                    Launch Grader →
+                </div>
+            </a>
+
+            <a href="/tools/subdomain-finder" class="tool-card">
+                <div>
+                    <div style="font-size: 32px; margin-bottom: 12px;">🌐</div>
+                    <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 6px;">Subdomain Reconnaissance</h3>
+                    <p style="font-size: 13.5px; color: var(--text-dim); line-height: 1.5;">
+                        Discover hidden subdomains (api, staging, dev, admin) and resolve live host IPs in parallel.
+                    </p>
+                </div>
+                <div style="margin-top: 18px; font-weight: 700; color: var(--primary-cyan); font-size: 13px;">
+                    Launch Recon →
+                </div>
+            </a>
+
+            <a href="/tools/password-analyzer" class="tool-card">
+                <div>
+                    <div style="font-size: 32px; margin-bottom: 12px;">🔑</div>
+                    <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 6px;">Password & Secret Entropy Analyzer</h3>
+                    <p style="font-size: 13.5px; color: var(--text-dim); line-height: 1.5;">
+                        Calculate Shannon entropy, brute-force crack time estimates, and NIST 800-63B guidelines.
+                    </p>
+                </div>
+                <div style="margin-top: 18px; font-weight: 700; color: var(--primary-cyan); font-size: 13px;">
+                    Launch Analyzer →
+                </div>
+            </a>
+
+        </div>
+
+    </main>
+
+    <script src="{{ url_for('static', filename='cyber-effects.js') }}"></script>
+</body>
+</html>

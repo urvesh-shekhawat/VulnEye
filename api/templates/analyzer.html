@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Report Explainer & AI Remediation - VulnEye</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .analyzer-selector {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 20px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 14px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .ai-verdict-card {
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.08), rgba(112, 0, 255, 0.08));
+            border: 1px solid var(--primary-cyan);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 28px;
+        }
+        .finding-deep-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 20px;
+            margin-bottom: 16px;
+            transition: all 0.3s ease;
+        }
+        .finding-deep-card:hover {
+            border-color: var(--primary-cyan);
+        }
+        .vector-box {
+            background: rgba(255, 42, 95, 0.08);
+            border-left: 3px solid #ff2a5f;
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 12px 0;
+            font-size: 13.5px;
+            line-height: 1.5;
+        }
+        .fix-box {
+            background: rgba(0, 255, 157, 0.08);
+            border-left: 3px solid #00ff9d;
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 12px 0;
+            font-size: 13.5px;
+            line-height: 1.5;
+        }
+        .config-code-block {
+            background: #090d16;
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 16px;
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            color: #38bdf8;
+            overflow-x: auto;
+            position: relative;
+            margin-top: 10px;
+        }
+        .copy-float-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 4px 10px;
+            font-size: 11px;
+        }
+        /* Explanation Language Toggle Switcher */
+        .lang-switch-container {
+            display: inline-flex;
+            background: var(--bg-surface);
+            border: 1px solid var(--card-border);
+            padding: 4px;
+            border-radius: 10px;
+            gap: 4px;
+        }
+        .lang-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            padding: 6px 14px;
+            border-radius: 7px;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .lang-btn.active {
+            background: var(--primary-cyan);
+            color: #000;
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.35);
+        }
+        .lang-btn:hover:not(.active) {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Visibility control only for explanation content */
+        body.lang-mode-hi .lang-en {
+            display: none !important;
+        }
+        body.lang-mode-en .lang-hi {
+            display: none !important;
+        }
+    </style>
+</head>
+<body class="dark lang-mode-en">
+
+    <div class="ambient-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Cyber Navbar -->
+    <header class="navbar">
+        <a href="/dashboard" class="logo">
+            <div class="logo-shield">🛡️</div>
+            <span class="logo-text">VulnEye</span>
+        </a>
+
+        <div class="nav-links">
+            <a href="/dashboard" class="nav-link">📊 Dashboard</a>
+            <a href="/scan" class="nav-link">🎯 Scan</a>
+            <a href="/analyzer" class="nav-link active">🤖 Report AI Explainer</a>
+            <a href="/guide" class="nav-link">📖 Security Handbook</a>
+            <a href="/monitoring" class="nav-link">🔄 Watchlist</a>
+            <a href="/compare" class="nav-link">⚔️ Compare</a>
+            <a href="/tools" class="nav-link">🧰 Tools</a>
+        </div>
+
+        <div class="navbar-actions">
+            <button onclick="toggleAudio()" class="navbar-btn" id="audioToggleBtn" title="Toggle SFX">
+                🔊 <span>SFX</span>
+            </button>
+            <button onclick="toggleDark()" class="navbar-btn" id="themeBtn">
+                <span id="themeIcon">☀️</span> <span id="themeText">Light</span>
+            </button>
+
+            {% if session.get('user') %}
+            <div class="user-profile-dropdown" id="userProfileDropdown">
+                <button type="button" class="user-profile-badge avatar-only" id="userProfileBtn" onclick="toggleUserProfileMenu(event)" title="{{ session['user'].get('name') }} (Account Profile)">
+                    <img src="{{ session['user'].get('picture') }}" class="user-profile-avatar" alt="Avatar">
+                    <span class="user-online-status-dot"></span>
+                </button>
+
+                <div class="user-profile-menu" id="userProfileMenu">
+                    <div class="profile-menu-header">
+                        <img src="{{ session['user'].get('picture') }}" class="profile-menu-avatar-lg" alt="Avatar">
+                        <div class="profile-menu-info">
+                            <div class="profile-menu-fullname">{{ session['user'].get('name') }}</div>
+                            <div class="profile-menu-email">{{ session['user'].get('email', '') }}</div>
+                            <span class="profile-menu-badge-pill">🛡️ {{ session.get('user', {}).get('plan', 'PRO PLAN')|upper }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-quick-stats">
+                        <div class="profile-stat-item">
+                            <span class="profile-stat-label">Clearance</span>
+                            <span class="profile-stat-val">Verified SecOps</span>
+                        </div>
+                        <div class="profile-stat-item">
+                            <span class="profile-stat-label">Telemetry</span>
+                            <span class="profile-stat-val">24/7 Active</span>
+                        </div>
+                    </div>
+
+                    <div class="profile-menu-links">
+                        <a href="/settings" class="profile-menu-link">⚙️ <span>Account & API Keys</span></a>
+                        <a href="/dashboard" class="profile-menu-link">📊 <span>SOC Dashboard</span></a>
+                        <a href="/history" class="profile-menu-link">📜 <span>Scan History</span></a>
+                        <a href="/monitoring" class="profile-menu-link">🔄 <span>Watchlist Monitor</span></a>
+                        <a href="/pricing" class="profile-menu-link">💳 <span>Upgrade & Billing</span></a>
+                        <a href="/tools" class="profile-menu-link">🧰 <span>Free Cyber Tools</span></a>
+                    </div>
+
+                    <div class="profile-menu-divider"></div>
+
+                    <a href="/logout" class="profile-menu-logout">
+                        <span>🚪 Logout</span>
+                        <span style="font-size: 10px; opacity: 0.8; font-family: var(--font-mono);">SIGN OUT</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </header>
+
+    <main class="main-content">
+        
+        <section class="results-hero-card" style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                <div>
+                    <h2>🤖 INTELLIGENT REMEDIATION ASSISTANT</h2>
+                    <h1>Plain-Language Report Explainer</h1>
+                    <p style="color: var(--text-dim); font-size: 13px; margin-top: 4px;">
+                        Select any security report to get an executive breakdown, attacker exploit vectors, and tailored fix scripts.
+                    </p>
+                </div>
+
+                <!-- Explanation Language Switcher (Defaults to English) -->
+                <div>
+                    <span style="display: block; font-size: 11px; font-weight: 700; color: var(--text-dim); margin-bottom: 6px; letter-spacing: 0.5px;">
+                        EXPLANATION LANGUAGE:
+                    </span>
+                    <div class="lang-switch-container">
+                        <button type="button" class="lang-btn active" id="btnLangEn" onclick="setExplanationLang('en')">
+                            🇬🇧 English (Default)
+                        </button>
+                        <button type="button" class="lang-btn" id="btnLangHi" onclick="setExplanationLang('hi')">
+                            🇮🇳 हिंदी / Hinglish
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Selector Form -->
+        <div class="analyzer-selector">
+            <form action="/analyzer" method="POST" style="display: flex; gap: 12px; width: 100%; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px;">
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-dim); display: block; margin-bottom: 6px;">
+                        SELECT PAST SCAN REPORT:
+                    </label>
+                    <select name="scan_id" class="table-search-input" style="width: 100%;">
+                        <option value="">-- Choose from your scan history --</option>
+                        {% for s in scans %}
+                        <option value="{{ s[0] }}" {% if selected_scan_id|string == s[0]|string %}selected{% endif %}>
+                            #{{ s[0] }} - {{ s[1] }} ({{ s[6] }} Risk | {{ s[2] }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div style="flex: 1; min-width: 250px;">
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-dim); display: block; margin-bottom: 6px;">
+                        OR ENTER NEW TARGET DOMAIN:
+                    </label>
+                    <input 
+                        type="text" 
+                        name="url" 
+                        placeholder="https://example.com" 
+                        class="table-search-input" 
+                        style="width: 100%;"
+                    >
+                </div>
+
+                <button type="submit" class="btn-cyber-primary" style="padding: 10px 22px; height: fit-content; align-self: flex-end;">
+                    🔍 Explain Report
+                </button>
+            </form>
+        </div>
+
+        {% if scan_data and explanation %}
+        <!-- AI Executive Verdict -->
+        <div class="ai-verdict-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+                <div>
+                    <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); letter-spacing: 1px;">
+                        AUDIT TARGET DIAGNOSTIC
+                    </span>
+                    <h2 style="font-family: var(--font-display); font-size: 24px; font-weight: 800; color: var(--primary-cyan);">
+                        {{ scan_data.url }}
+                    </h2>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="risk-badge risk-{{ scan_data.risk|lower }}">
+                        {{ scan_data.risk }} Risk ({{ explanation.total_issues }} Items)
+                    </span>
+                </div>
+            </div>
+
+            <!-- Only explanation verdict text switches language -->
+            <p style="font-size: 15px; line-height: 1.6; color: var(--text-main);">
+                <span class="lang-en">{{ explanation.verdict_en }}</span>
+                <span class="lang-hi">{{ explanation.verdict_hi }}</span>
+            </p>
+        </div>
+
+        <!-- Finding Deep-Dives -->
+        <div style="margin-bottom: 30px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                <h3 style="font-size: 18px; font-weight: 800;">
+                    🔍 Step-by-Step Risk Breakdown & Threat Vectors ({{ explanation.findings|length }} Issues)
+                </h3>
+            </div>
+
+            {% for item in explanation.findings %}
+            <div class="finding-deep-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h4 style="font-size: 16px; font-weight: 800;">
+                        ⚡ <span class="lang-en">{{ item.title_en }}</span><span class="lang-hi">{{ item.title_hi }}</span>
+                    </h4>
+                    <span class="severity-badge sev-{{ item.severity|lower }}">{{ item.severity }}</span>
+                </div>
+
+                <p style="font-size: 14px; color: var(--text-main); margin-bottom: 10px; line-height: 1.5;">
+                    <strong class="lang-en">📖 What this means: </strong>
+                    <strong class="lang-hi">📖 इसका क्या मतलब है: </strong>
+                    <span class="lang-en">{{ item.plain_meaning_en }}</span>
+                    <span class="lang-hi">{{ item.plain_meaning_hi }}</span>
+                </p>
+
+                <div class="vector-box">
+                    <strong style="color: #ff2a5f;" class="lang-en">🕵️ How Attackers Exploit This (Threat Vector):</strong>
+                    <strong style="color: #ff2a5f;" class="lang-hi">🕵️ हैकर इसका फायदा कैसे उठाएगा (Attack Scenario):</strong>
+                    <div style="margin-top: 4px;">
+                        <span class="lang-en">{{ item.hacker_vector_en }}</span>
+                        <span class="lang-hi">{{ item.hacker_vector_hi }}</span>
+                    </div>
+                </div>
+
+                <div class="fix-box">
+                    <strong style="color: #00ff9d;" class="lang-en">🛠️ How to Remediate (1-Minute Actionable Fix):</strong>
+                    <strong style="color: #00ff9d;" class="lang-hi">🛠️ तुरंत कैसे ठीक करें (1-Minute Actionable Fix):</strong>
+                    <div style="margin-top: 4px;">
+                        <span class="lang-en">{{ item.fix_steps_en }}</span>
+                        <span class="lang-hi">{{ item.fix_steps_hi }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Custom Auto-Generated Remediation Config -->
+        <div class="detail-card" style="margin-bottom: 30px;">
+            <div class="detail-card-title">
+                <h3>⚡ Tailored Web Server Fix (Copy-Paste Ready)</h3>
+                <span class="step-badge good">AUTO-GENERATED NGINX CONFIG</span>
+            </div>
+            <p style="font-size: 13px; color: var(--text-dim); margin-top: 6px;">
+                Insert this customized server block configuration into your Nginx configuration to remediate all missing headers and dotfile leaks instantly:
+            </p>
+            <div class="config-code-block">
+                <button onclick="copyToClipboard(document.getElementById('nginxCode').innerText, this)" class="btn-cyber-secondary copy-float-btn">
+                    📋 Copy
+                </button>
+                <pre id="nginxCode"><code>{{ explanation.nginx_snippet }}</code></pre>
+            </div>
+        </div>
+
+        <!-- Custom Firewall Hardening Script -->
+        {% if scan_data.open_ports %}
+        <div class="detail-card">
+            <div class="detail-card-title">
+                <h3>🛡️ Linux Firewall Hardening Script (UFW)</h3>
+                <span class="step-badge warning">PORT SECURITY</span>
+            </div>
+            <p style="font-size: 13px; color: var(--text-dim); margin-top: 6px;">
+                Run these commands in your Linux server terminal to restrict public database exposures:
+            </p>
+            <div class="config-code-block">
+                <button onclick="copyToClipboard(document.getElementById('ufwCode').innerText, this)" class="btn-cyber-secondary copy-float-btn">
+                    📋 Copy
+                </button>
+                <pre id="ufwCode"><code>{{ explanation.ufw_snippet }}</code></pre>
+            </div>
+        </div>
+        {% endif %}
+
+        {% elif not scan_data %}
+        <div style="text-align: center; padding: 60px 20px; color: var(--text-muted);">
+            <p style="font-size: 16px; margin-bottom: 12px;">
+                Select a scan from the dropdown above or enter a domain to get an intelligent diagnostic.
+            </p>
+        </div>
+        {% endif %}
+
+    </main>
+
+    <script src="{{ url_for('static', filename='cyber-effects.js') }}"></script>
+    <script>
+        function setExplanationLang(lang) {
+            document.body.classList.remove('lang-mode-hi', 'lang-mode-en');
+            document.body.classList.add('lang-mode-' + lang);
+
+            const btnHi = document.getElementById('btnLangHi');
+            const btnEn = document.getElementById('btnLangEn');
+
+            if (btnHi && btnEn) {
+                if (lang === 'hi') {
+                    btnHi.classList.add('active');
+                    btnEn.classList.remove('active');
+                } else {
+                    btnEn.classList.add('active');
+                    btnHi.classList.remove('active');
+                }
+            }
+
+            try {
+                localStorage.setItem('vulneye_explainer_lang', lang);
+            } catch(e) {}
+        }
+
+        // Initialize: English is always default unless explicitly set
+        (function() {
+            const savedLang = localStorage.getItem('vulneye_explainer_lang') || 'en';
+            setExplanationLang(savedLang);
+        })();
+    </script>
+</body>
+</html>

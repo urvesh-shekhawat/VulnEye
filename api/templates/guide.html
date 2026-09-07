@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber Security Knowledge Base & Scanner Handbook - VulnEye</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .guide-hero {
+            text-align: center;
+            max-width: 850px;
+            margin: 20px auto 30px;
+        }
+        .guide-category-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 28px;
+            margin-bottom: 24px;
+            transition: all 0.3s ease;
+        }
+        .guide-category-card:hover {
+            border-color: var(--primary-cyan);
+            box-shadow: 0 10px 30px rgba(0, 240, 255, 0.08);
+        }
+        .guide-cat-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+        .guide-cat-icon {
+            font-size: 28px;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 12px;
+            flex-shrink: 0;
+        }
+        .code-box {
+            background: #090d16;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            color: #38bdf8;
+            margin-top: 10px;
+            overflow-x: auto;
+        }
+        .threat-tag {
+            background: rgba(255, 42, 95, 0.15);
+            color: #ff2a5f;
+            border: 1px solid rgba(255, 42, 95, 0.3);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        /* Language Toggle Switcher */
+        .lang-switch-container {
+            display: inline-flex;
+            background: var(--bg-surface);
+            border: 1px solid var(--card-border);
+            padding: 4px;
+            border-radius: 10px;
+            gap: 4px;
+            margin-top: 12px;
+        }
+        .lang-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            padding: 6px 14px;
+            border-radius: 7px;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .lang-btn.active {
+            background: var(--primary-cyan);
+            color: #000;
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.35);
+        }
+        .lang-btn:hover:not(.active) {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Visibility control only for handbook explanation content */
+        body.lang-mode-hi .lang-en {
+            display: none !important;
+        }
+        body.lang-mode-en .lang-hi {
+            display: none !important;
+        }
+    </style>
+</head>
+<body class="dark lang-mode-en">
+
+    <div class="ambient-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Cyber Navbar -->
+    <header class="navbar">
+        <a href="/dashboard" class="logo">
+            <div class="logo-shield">🛡️</div>
+            <span class="logo-text">VulnEye</span>
+        </a>
+
+        <div class="nav-links">
+            <a href="/dashboard" class="nav-link">📊 Dashboard</a>
+            <a href="/scan" class="nav-link">🎯 Scan</a>
+            <a href="/analyzer" class="nav-link">🤖 Report AI Explainer</a>
+            <a href="/guide" class="nav-link active">📖 Security Handbook</a>
+            <a href="/monitoring" class="nav-link">🔄 Watchlist</a>
+            <a href="/compare" class="nav-link">⚔️ Compare</a>
+            <a href="/tools" class="nav-link">🧰 Tools</a>
+        </div>
+
+        <div class="navbar-actions">
+            <button onclick="toggleAudio()" class="navbar-btn" id="audioToggleBtn" title="Toggle SFX">
+                🔊 <span>SFX</span>
+            </button>
+            <button onclick="toggleDark()" class="navbar-btn" id="themeBtn">
+                <span id="themeIcon">☀️</span> <span id="themeText">Light</span>
+            </button>
+
+            {% if session.get('user') %}
+            <div class="user-profile-dropdown" id="userProfileDropdown">
+                <button type="button" class="user-profile-badge avatar-only" id="userProfileBtn" onclick="toggleUserProfileMenu(event)" title="{{ session['user'].get('name') }} (Account Profile)">
+                    <img src="{{ session['user'].get('picture') }}" class="user-profile-avatar" alt="Avatar">
+                    <span class="user-online-status-dot"></span>
+                </button>
+
+                <div class="user-profile-menu" id="userProfileMenu">
+                    <div class="profile-menu-header">
+                        <img src="{{ session['user'].get('picture') }}" class="profile-menu-avatar-lg" alt="Avatar">
+                        <div class="profile-menu-info">
+                            <div class="profile-menu-fullname">{{ session['user'].get('name') }}</div>
+                            <div class="profile-menu-email">{{ session['user'].get('email', '') }}</div>
+                            <span class="profile-menu-badge-pill">🛡️ {{ session.get('user', {}).get('plan', 'PRO PLAN')|upper }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-quick-stats">
+                        <div class="profile-stat-item">
+                            <span class="profile-stat-label">Clearance</span>
+                            <span class="profile-stat-val">Verified SecOps</span>
+                        </div>
+                        <div class="profile-stat-item">
+                            <span class="profile-stat-label">Telemetry</span>
+                            <span class="profile-stat-val">24/7 Active</span>
+                        </div>
+                    </div>
+
+                    <div class="profile-menu-links">
+                        <a href="/settings" class="profile-menu-link">⚙️ <span>Account & API Keys</span></a>
+                        <a href="/dashboard" class="profile-menu-link">📊 <span>SOC Dashboard</span></a>
+                        <a href="/history" class="profile-menu-link">📜 <span>Scan History</span></a>
+                        <a href="/monitoring" class="profile-menu-link">🔄 <span>Watchlist Monitor</span></a>
+                        <a href="/pricing" class="profile-menu-link">💳 <span>Upgrade & Billing</span></a>
+                        <a href="/tools" class="profile-menu-link">🧰 <span>Free Cyber Tools</span></a>
+                    </div>
+
+                    <div class="profile-menu-divider"></div>
+
+                    <a href="/logout" class="profile-menu-logout">
+                        <span>🚪 Logout</span>
+                        <span style="font-size: 10px; opacity: 0.8; font-family: var(--font-mono);">SIGN OUT</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </header>
+
+    <main class="main-content">
+        
+        <div class="guide-hero">
+            <div class="cyber-badge" style="margin-bottom: 10px;">VULNEYE CYBER DEFENSE ACADEMY</div>
+            <h1 style="font-family: var(--font-display); font-size: 34px; font-weight: 800; margin-bottom: 10px;">
+                Attack Surface & Vulnerability Knowledge Base
+            </h1>
+            <p style="color: var(--text-dim); font-size: 14.5px; line-height: 1.6;">
+                Learn what VulnEye audits across your perimeter, what each security vulnerability means in practice, real-world attack vectors, and copy-paste 1-minute remediation snippets.
+            </p>
+
+            <!-- Explanation Language Switcher (Defaults to English) -->
+            <div style="margin-top: 14px;">
+                <div class="lang-switch-container">
+                    <button type="button" class="lang-btn active" id="btnGuideLangEn" onclick="setGuideLang('en')">
+                        🇬🇧 English (Default)
+                    </button>
+                    <button type="button" class="lang-btn" id="btnGuideLangHi" onclick="setGuideLang('hi')">
+                        🇮🇳 हिंदी / Hinglish
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 1: OWASP Security Headers -->
+        <div class="guide-category-card">
+            <div class="guide-cat-header">
+                <div class="guide-cat-icon">⚡</div>
+                <div>
+                    <h2 style="font-size: 20px; font-weight: 800;">1. OWASP Security Defense Headers</h2>
+                    <span style="font-size: 12px; color: var(--text-dim);">Browser-level security enforcement policies</span>
+                </div>
+            </div>
+
+            <p style="color: var(--text-dim); font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
+                <span class="lang-en">When a browser requests your web pages, HTTP Response Headers instruct the client browser on how to restrict malicious scripts, frames, and resource loading.</span>
+                <span class="lang-hi">जब कोई ब्राउज़र आपकी वेबसाइट लोड करता है, तो वेब सर्वर HTTP Response Headers के जरिए ब्राउज़र को निर्देश देता है कि दुर्भावनापूर्ण स्क्रिप्ट्स (XSS) या फ़्रेम्स (Clickjacking) को ब्लॉक करना है या नहीं।</span>
+            </p>
+
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+                <!-- HSTS -->
+                <div style="background: rgba(0,0,0,0.2); padding: 14px; border-radius: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <strong style="color: var(--primary-cyan);">Strict-Transport-Security (HSTS)</strong>
+                        <span class="threat-tag">SSL Stripping Defense</span>
+                    </div>
+                    <p style="font-size: 13px; color: var(--text-dim); line-height: 1.5;">
+                        <span class="lang-en">
+                            <strong>What it is:</strong> Instructs browsers to strictly communicate over HTTPS, preventing unencrypted HTTP fallbacks.<br/>
+                            <strong>Threat Vector:</strong> Without HSTS, active network eavesdroppers can execute SSL Stripping attacks to intercept cleartext passwords.<br/>
+                            <strong>Remediation (Nginx):</strong>
+                        </span>
+                        <span class="lang-hi">
+                            <strong>क्या होता है:</strong> ब्राउज़र को बाध्य करता है कि वह हमेशा सुरक्षित HTTPS कनेक्शन पर ही जुड़े।<br/>
+                            <strong>खतरा (Hacker Vector):</strong> अगर यह गायब है, तो पब्लिक Wi-Fi या नेटवर्क पर हमलावर कनेक्शन को असुरक्षित HTTP में डाउनग्रेड (SSL Stripping) करके पासवर्ड्स चुरा सकता है।<br/>
+                            <strong>फ़िक्स (Nginx):</strong>
+                        </span>
+                    </p>
+                    <div class="code-box">add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;</div>
+                </div>
+
+                <!-- X-Frame-Options -->
+                <div style="background: rgba(0,0,0,0.2); padding: 14px; border-radius: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <strong style="color: var(--primary-cyan);">X-Frame-Options</strong>
+                        <span class="threat-tag">Clickjacking Defense</span>
+                    </div>
+                    <p style="font-size: 13px; color: var(--text-dim); line-height: 1.5;">
+                        <span class="lang-en">
+                            <strong>What it is:</strong> Prevents your web pages from being embedded within external third-party iframes.<br/>
+                            <strong>Threat Vector:</strong> Attackers overlay an invisible iframe of your application to trick authenticated users into executing unwanted actions (Clickjacking).<br/>
+                            <strong>Remediation (Nginx):</strong>
+                        </span>
+                        <span class="lang-hi">
+                            <strong>क्या होता है:</strong> आपकी वेबसाइट को किसी अज्ञात फ़िशिंग साइट के <code>&lt;iframe&gt;</code> में लोड होने से रोकता है।<br/>
+                            <strong>खतरा (Hacker Vector):</strong> हैकर एक अदृश्य फ़्रेम बनाकर यूज़र से अनजाने में 'Delete Account' या 'Transfer Funds' जैसे संवेदनशील बटन क्लिक करवा लेता है (Clickjacking)।<br/>
+                            <strong>फ़िक्स (Nginx):</strong>
+                        </span>
+                    </p>
+                    <div class="code-box">add_header X-Frame-Options "DENY" always;</div>
+                </div>
+
+                <!-- Content-Security-Policy -->
+                <div style="background: rgba(0,0,0,0.2); padding: 14px; border-radius: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <strong style="color: var(--primary-cyan);">Content-Security-Policy (CSP)</strong>
+                        <span class="threat-tag">XSS & Data Theft Defense</span>
+                    </div>
+                    <p style="font-size: 13px; color: var(--text-dim); line-height: 1.5;">
+                        <span class="lang-en">
+                            <strong>What it is:</strong> Restricts which domains can execute JavaScript scripts, styles, or load external images.<br/>
+                            <strong>Threat Vector:</strong> Unrestricted execution allows Cross-Site Scripting (XSS) payloads to hijack user sessions and keylog credentials.<br/>
+                            <strong>Remediation (Nginx):</strong>
+                        </span>
+                        <span class="lang-hi">
+                            <strong>क्या होता है:</strong> ब्राउज़र को व्हाइटलिस्ट नियम देता है कि JavaScript और Styles सिर्फ़ आपकी वेबसाइट या चुनिंदा डोमेन से ही लोड होंगी।<br/>
+                            <strong>खतरा (Hacker Vector):</strong> क्रॉस-साइट स्क्रिप्टिंग (XSS) अटैक होने पर हैकर की इंजेक्टेड स्क्रिप्ट्स यूज़र के टोकन्स और कुकीज़ चुरा लेती हैं।<br/>
+                            <strong>फ़िक्स (Nginx):</strong>
+                        </span>
+                    </p>
+                    <div class="code-box">add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';" always;</div>
+                </div>
+
+                <!-- X-Content-Type-Options -->
+                <div style="background: rgba(0,0,0,0.2); padding: 14px; border-radius: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <strong style="color: var(--primary-cyan);">X-Content-Type-Options</strong>
+                        <span class="threat-tag">MIME Sniffing Prevention</span>
+                    </div>
+                    <p style="font-size: 13px; color: var(--text-dim); line-height: 1.5;">
+                        <span class="lang-en">
+                            <strong>What it is:</strong> Forces browsers to strictly respect the declared <code>Content-Type</code> header without sniffing.<br/>
+                            <strong>Threat Vector:</strong> Prevents malicious uploads disguised as non-executable files from being executed as scripts.<br/>
+                            <strong>Remediation (Nginx):</strong>
+                        </span>
+                        <span class="lang-hi">
+                            <strong>क्या होता है:</strong> ब्राउज़र को फ़ाइलों के MIME-type का मनमाना अनुमान (MIME sniffing) लगाने से रोकता है।<br/>
+                            <strong>खतरा (Hacker Vector):</strong> हैकर किसी <code>.jpg</code> इमेज फ़ाइल के अंदर JavaScript छिपाकर अपलोड कर देता है, जिसे ब्राउज़र स्क्रिप्ट समझकर चला देता है।<br/>
+                            <strong>फ़िक्स (Nginx):</strong>
+                        </span>
+                    </p>
+                    <div class="code-box">add_header X-Content-Type-Options "nosniff" always;</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 2: Exposed Ports & Services -->
+        <div class="guide-category-card">
+            <div class="guide-cat-header">
+                <div class="guide-cat-icon">🔌</div>
+                <div>
+                    <h2 style="font-size: 20px; font-weight: 800;">2. Exposed Network Ports & Database Services</h2>
+                    <span style="font-size: 12px; color: var(--text-dim);">Perimeter firewall hardening & entry points</span>
+                </div>
+            </div>
+
+            <p style="color: var(--text-dim); font-size: 14px; line-height: 1.6; margin-bottom: 14px;">
+                <span class="lang-en">Every network daemon listens on a port. Only HTTP (80) and HTTPS (443) should be exposed publicly. Database and internal service ports must be isolated.</span>
+                <span class="lang-hi">सर्वर पर हर सेवा एक पोर्ट नंबर पर सुनती है। इंटरनेट पर केवल वेब पोर्ट्स (80 / 443) ही खुले होने चाहिए। डेटाबेस और आंतरिक प्रबंधन पोर्ट्स कभी भी सार्वजनिक नहीं होने चाहिए।</span>
+            </p>
+
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                <div style="background: rgba(0,0,0,0.2); padding: 14px; border-radius: 10px;">
+                    <strong style="color: var(--color-danger);">Port 3306 (MySQL) & 5432 (PostgreSQL)</strong>
+                    <p style="font-size: 12.5px; color: var(--text-dim); margin-top: 6px; line-height: 1.5;">
+                        <span class="lang-en">
+                            <strong>Threat:</strong> Distributed botnets launch brute-force credential attacks against exposed database ports.<br/>
+                            <strong>Fix (UFW):</strong> <code>sudo ufw deny 3306/tcp</code>
+                        </span>
+                        <span class="lang-hi">
+                            <strong>खतरा:</strong> ऑटोमेटेड बॉट्स लगातार ब्रूट-फ़ोर्स पासवर्ड्स ट्राई करते हैं या रिमोट एसक्यूएल कनेक्शन खोलते हैं।<br/>
+                            <strong>फ़िक्स (UFW):</strong> <code>sudo ufw deny 3306/tcp</code>
+                        </span>
+                    </p>
+                </div>
+
+                <div style="background: rgba(0,0,0,0.2); padding: 14px; border-radius: 10px;">
+                    <strong style="color: var(--color-danger);">Port 6379 (Redis) & 27017 (MongoDB)</strong>
+                    <p style="font-size: 12.5px; color: var(--text-dim); margin-top: 6px; line-height: 1.5;">
+                        <span class="lang-en">
+                            <strong>Threat:</strong> Unauthenticated key-value stores can be dumped, modified, or held for ransom within minutes.<br/>
+                            <strong>Fix:</strong> Bind daemon configuration strictly to <code>bind-address = 127.0.0.1</code>.
+                        </span>
+                        <span class="lang-hi">
+                            <strong>खतरा:</strong> डिफ़ॉल्ट रूप से पासवर्ड न होने पर हैकर्स पूरा डेटा डिलीट या डंप करके रैनसमवेयर (Ransomware) मांगते हैं।<br/>
+                            <strong>फ़िक्स:</strong> Bind address को <code>127.0.0.1</code> पर सेट करें।
+                        </span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3: Sensitive File Leaks -->
+        <div class="guide-category-card">
+            <div class="guide-cat-header">
+                <div class="guide-cat-icon">🚨</div>
+                <div>
+                    <h2 style="font-size: 20px; font-weight: 800;">3. Sensitive Dotfile Leaks (.env, .git, backups)</h2>
+                    <span style="font-size: 12px; color: var(--text-dim);">Source code & credential disclosure prevention</span>
+                </div>
+            </div>
+
+            <p style="color: var(--text-dim); font-size: 14px; line-height: 1.6; margin-bottom: 14px;">
+                <span class="lang-en">Accidental deployment of repository files or environment configs allows anyone to download secret API keys and proprietary source code directly via HTTP GET requests.</span>
+                <span class="lang-hi">डेवलपमेंट के दौरान <code>.env</code>, <code>.git</code>, या <code>backup.zip</code> फ़ाइलें गलती से पब्लिक वेब डायरेक्टरी में रह जाती हैं, जिन्हें कोई भी ब्राउज़र से डायरेक्ट डाउनलोड कर सकता है।</span>
+            </p>
+
+            <div style="background: rgba(0,0,0,0.2); padding: 14px; border-radius: 10px;">
+                <p style="font-size: 13px; color: var(--text-dim); line-height: 1.5;">
+                    <span class="lang-en"><strong>Universal Nginx Dotfile Deny Rule:</strong> Insert this rule to block all hidden configuration files:</span>
+                    <span class="lang-hi"><strong>यूनिवर्सल Nginx डॉटफाइल ब्लॉक रूल:</strong> अपने Nginx सर्वर ब्लॉक में ये नियम जोड़ें:</span>
+                </p>
+                <div class="code-box">location ~ /\.(?!well-known) {
+    deny all;
+    return 404;
+}</div>
+            </div>
+        </div>
+
+        <!-- Section 4: Cookies & CORS -->
+        <div class="guide-category-card">
+            <div class="guide-cat-header">
+                <div class="guide-cat-icon">🍪</div>
+                <div>
+                    <h2 style="font-size: 20px; font-weight: 800;">4. Session Cookies & CORS Security Flags</h2>
+                    <span style="font-size: 12px; color: var(--text-dim);">Prevent session hijacking & cross-origin data theft</span>
+                </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 10px; font-size: 13.5px; color: var(--text-dim); line-height: 1.6;">
+                <div>
+                    <strong style="color: var(--text-main);">• HttpOnly:</strong>
+                    <span class="lang-en">Prevents client-side scripts from reading session cookies via JavaScript (document.cookie).</span>
+                    <span class="lang-hi">JavaScript (document.cookie) को कुकी पढ़ने से रोकता है ताकि XSS अटैक में सेशन टोकन चोरी न हो सके।</span>
+                </div>
+                <div>
+                    <strong style="color: var(--text-main);">• Secure Flag:</strong>
+                    <span class="lang-en">Ensures cookies are only transmitted across encrypted TLS/HTTPS channels.</span>
+                    <span class="lang-hi">कुकी को केवल एन्क्रिप्टेड HTTPS कनेक्शन पर ही ट्रांसमिट होने की अनुमति देता है।</span>
+                </div>
+                <div>
+                    <strong style="color: var(--text-main);">• SameSite (Lax / Strict):</strong>
+                    <span class="lang-en">Protects against Cross-Site Request Forgery (CSRF) exploits on sensitive endpoints.</span>
+                    <span class="lang-hi">क्रॉस-साइट रिक्वेस्ट फ़ॉर्जी (CSRF) हमलों से यूज़र सेशंस को सुरक्षित रखता है।</span>
+                </div>
+                <div>
+                    <strong style="color: var(--text-main);">• CORS Misconfiguration:</strong>
+                    <span class="lang-en">Never combine wildcard origin <code>*</code> with credentials <code>Allow-Credentials: true</code>.</span>
+                    <span class="lang-hi">कभी भी <code>Access-Control-Allow-Origin: *</code> के साथ <code>Allow-Credentials: true</code> न लगाएं।</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin: 40px 0;">
+            <a href="/analyzer" class="btn-cyber-primary" style="padding: 12px 28px; font-size: 15px; display: inline-flex; align-items: center; gap: 8px;">
+                🤖 Open AI Report Explainer for My Website →
+            </a>
+        </div>
+
+    </main>
+
+    <script src="{{ url_for('static', filename='cyber-effects.js') }}"></script>
+    <script>
+        function setGuideLang(lang) {
+            document.body.classList.remove('lang-mode-hi', 'lang-mode-en');
+            document.body.classList.add('lang-mode-' + lang);
+
+            const btnHi = document.getElementById('btnGuideLangHi');
+            const btnEn = document.getElementById('btnGuideLangEn');
+
+            if (btnHi && btnEn) {
+                if (lang === 'hi') {
+                    btnHi.classList.add('active');
+                    btnEn.classList.remove('active');
+                } else {
+                    btnEn.classList.add('active');
+                    btnHi.classList.remove('active');
+                }
+            }
+
+            try {
+                localStorage.setItem('vulneye_explainer_lang', lang);
+            } catch(e) {}
+        }
+
+        // Initialize: English is always default unless explicitly set
+        (function() {
+            const savedLang = localStorage.getItem('vulneye_explainer_lang') || 'en';
+            setGuideLang(savedLang);
+        })();
+    </script>
+</body>
+</html>
