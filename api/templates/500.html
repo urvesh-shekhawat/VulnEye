@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>500 — System Anomaly | VulnEye Defense</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        .error-wrapper {
+            min-height: 80vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        .error-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 183, 3, 0.4);
+            border-radius: 24px;
+            padding: 50px 36px;
+            max-width: 580px;
+            width: 100%;
+            backdrop-filter: blur(24px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(255, 183, 3, 0.2);
+            position: relative;
+        }
+        .error-code {
+            font-size: 84px;
+            font-weight: 900;
+            font-family: var(--font-mono);
+            line-height: 1;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #ffb703, #ff2a5f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body class="dark">
+
+    <div class="ambient-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Cyber Navbar -->
+    <header class="navbar">
+        <a href="/dashboard" class="logo">
+            <div class="logo-shield">🛡️</div>
+            <span class="logo-text">VulnEye</span>
+        </a>
+    </header>
+
+    <main class="error-wrapper">
+        <div class="error-card">
+            <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+            <div class="error-code">500</div>
+            <div class="cyber-badge" style="border-color: #ffb703; color: #ffb703; margin-bottom: 16px;">
+                INTERNAL SYSTEM ANOMALY // ENGINE OVERLOAD
+            </div>
+            
+            <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6; margin-bottom: 28px;">
+                The autonomous security kernel encountered an unexpected condition while compiling threat vectors. Automated diagnostic telemetry has logged this anomaly.
+            </p>
+
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <a href="/dashboard" class="btn-cyber-primary">
+                    🛡️ Return to Dashboard
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <script src="{{ url_for('static', filename='cyber-effects.js') }}"></script>
+</body>
+</html>

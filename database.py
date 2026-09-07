@@ -95,6 +95,17 @@ class PaymentTransaction(Base):
     status = Column(String(20), default="SUCCESS")
     created_at = Column(DateTime, default=datetime.utcnow)
 
+class UserWebhookConfig(Base):
+    __tablename__ = "user_webhooks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_email = Column(String(255), nullable=False, unique=True, index=True)
+    webhook_url = Column(String(500), nullable=True)
+    channel_type = Column(String(50), default="discord") # discord, slack, custom
+    alert_level = Column(String(50), default="High & Critical") # All, High & Critical, Critical Only
+    is_enabled = Column(Boolean, default=True)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
 def init_db():
     Base.metadata.create_all(bind=engine)
     
@@ -583,3 +594,124 @@ def get_transaction_by_id(transaction_id, user_email=None):
         }
     finally:
         session.close()
+
+# ================= WEBHOOK THREAT ALERTS =================
+def get_webhook_config(user_email):
+    if not user_email:
+        return {"webhook_url": "", "channel_type": "discord", "alert_level": "High & Critical", "is_enabled": False}
+    init_db()
+    session = SessionLocal()
+    try:
+        cfg = session.query(UserWebhookConfig).filter(UserWebhookConfig.user_email == user_email).first()
+        if not cfg:
+            return {"webhook_url": "", "channel_type": "discord", "alert_level": "High & Critical", "is_enabled": False}
+        return {
+            "webhook_url": cfg.webhook_url or "",
+            "channel_type": cfg.channel_type or "discord",
+            "alert_level": cfg.alert_level or "High & Critical",
+            "is_enabled": bool(cfg.is_enabled),
+            "updated_at": cfg.updated_at.strftime("%Y-%m-%d %H:%M") if cfg.updated_at else ""
+        }
+    finally:
+        session.close()
+
+def save_webhook_config(user_email, webhook_url, channel_type="discord", alert_level="High & Critical", is_enabled=True):
+    if not user_email:
+        return False
+    init_db()
+    session = SessionLocal()
+    try:
+        cfg = session.query(UserWebhookConfig).filter(UserWebhookConfig.user_email == user_email).first()
+        if not cfg:
+            cfg = UserWebhookConfig(
+                user_email=user_email,
+                webhook_url=webhook_url,
+                channel_type=channel_type,
+                alert_level=alert_level,
+                is_enabled=is_enabled,
+                updated_at=datetime.utcnow()
+            )
+            session.add(cfg)
+        else:
+            cfg.webhook_url = webhook_url
+            cfg.channel_type = channel_type
+            cfg.alert_level = alert_level
+            cfg.is_enabled = is_enabled
+            cfg.updated_at = datetime.utcnow()
+        session.commit()
+        return True
+    except Exception:
+        session.rollback()
+        return False
+    finally:
+        session.close()
+
+def send_webhook_alert(webhook_url, target_url, risk_level, findings_summary="Vulnerability scan completed", is_test=False):
+    """Dispatches a formatted security alert to Discord, Slack, or generic HTTP Webhooks."""
+    if not webhook_url:
+        return False, "No webhook URL provided"
+    
+    import requests
+    try:
+        # Determine color and title based on risk
+        color_map = {
+            "High": 0xff2a5f,    # Crimson Red
+            "Medium": 0xffb703,  # Amber Gold
+            "Low": 0x00ff9d,     # Emerald Green
+            "Safe": 0x00f0ff     # Cyan
+        }
+        embed_color = color_map.get(risk_level, 0x00f0ff)
+        
+        prefix = "🚨 [TEST ALERT] " if is_test else "🛡️ [SECURITY BREACH ALERT] "
+        
+        # Discord Embed Payload
+        if "discord.com" in webhook_url:
+            payload = {
+                "username": "VulnEye SOC Sentinel",
+                "avatar_url": "https://api.dicebear.com/7.x/bottts/png?seed=VulnEyeSecurity",
+                "embeds": [{
+                    "title": f"{prefix}Target: {target_url}",
+                    "description": f"**Threat Level:** `{risk_level.upper()}`\n**Findings:** {findings_summary}\n\n*Live telemetry event recorded by VulnEye Automated Defense Engine.*",
+                    "color": embed_color,
+                    "fields": [
+                        {"name": "Target Domain", "value": f"`{target_url}`", "inline": True},
+                        {"name": "Threat Classification", "value": f"`{risk_level}`", "inline": True},
+                        {"name": "Event Timestamp", "value": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"), "inline": False}
+                    ],
+                    "footer": {
+                        "text": "VulnEye Autonomous Threat Intelligence",
+                        "icon_url": "https://api.dicebear.com/7.x/bottts/png?seed=VulnEyeSecurity"
+                    }
+                }]
+            }
+        # Slack / General Payload
+        elif "slack.com" in webhook_url:
+            payload = {
+                "text": f"{prefix}*Target:* `{target_url}` | *Threat Level:* `{risk_level}`\n>{findings_summary}",
+                "blocks": [
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"*{prefix}Target:* `{target_url}`\n*Threat Classification:* `{risk_level.upper()}`\n*Summary:* {findings_summary}"
+                        }
+                    }
+                ]
+            }
+        # Generic Custom Webhook Payload
+        else:
+            payload = {
+                "event": "security_scan_alert",
+                "is_test": is_test,
+                "target_url": target_url,
+                "risk_level": risk_level,
+                "findings": findings_summary,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        
+        resp = requests.post(webhook_url, json=payload, headers={"Content-Type": "application/json"}, timeout=8)
+        if resp.status_code in [200, 204]:
+            return True, "Alert delivered successfully"
+        return False, f"Server responded with status code {resp.status_code}"
+    except Exception as e:
+        return False, f"Webhook dispatch error: {str(e)}"

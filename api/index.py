@@ -50,7 +50,10 @@ from database import (
     get_user_subscription,
     process_subscription_payment,
     get_user_transactions,
-    get_transaction_by_id
+    get_transaction_by_id,
+    get_webhook_config,
+    save_webhook_config,
+    send_webhook_alert
 )
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib import colors
@@ -88,7 +91,13 @@ class PrefixMiddleware(object):
             environ['PATH_INFO'] = path_info[len('/api/index.py'):] or '/'
         elif path_info.startswith('/api/index'):
             environ['PATH_INFO'] = path_info[len('/api/index'):] or '/'
-        elif path_info.startswith('/api') and not (path_info.startswith('/api/v1') or path_info.startswith('/api/static')):
+        elif path_info.startswith('/api') and not (
+            path_info.startswith('/api/v1') or 
+            path_info.startswith('/api/static') or 
+            path_info.startswith('/api/webhook') or 
+            path_info.startswith('/api/checkout') or 
+            path_info.startswith('/api/tools')
+        ):
             environ['PATH_INFO'] = path_info[len('/api'):] or '/'
         return self.wsgi_app(environ, start_response)
 
@@ -772,12 +781,14 @@ def settings():
     api_keys = get_user_api_keys(user_email)
     subscription = get_user_subscription(user_email)
     transactions = get_user_transactions(user_email)
+    webhook_config = get_webhook_config(user_email)
     new_token = session.pop("newly_created_token", None)
     return render_template(
         "settings.html",
         api_keys=api_keys,
         subscription=subscription,
         transactions=transactions,
+        webhook_config=webhook_config,
         new_token=new_token
     )
 
@@ -802,10 +813,106 @@ def revoke_key(key_id):
     revoke_api_key(key_id, user_email)
     return redirect(url_for("settings"))
 
+@app.route("/settings/webhook/save", methods=["POST"])
+@app.route("/api/webhook/save", methods=["POST"])
+@app.route("/webhook/save", methods=["POST"])
+def save_user_webhook():
+    if not is_logged_in():
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    user_email = get_current_user_email()
+    data = request.get_json(silent=True) or request.form
+    webhook_url = data.get("webhook_url", "").strip()
+    channel_type = data.get("channel_type", "discord")
+    alert_level = data.get("alert_level", "High & Critical")
+    is_enabled = data.get("is_enabled", "true") in ["true", True, "on", 1]
+
+    saved = save_webhook_config(user_email, webhook_url, channel_type, alert_level, is_enabled)
+    if request.is_json:
+        return jsonify({"success": saved})
+    return redirect(url_for("settings"))
+
+@app.route("/api/webhook/test", methods=["POST"])
+@app.route("/webhook/test", methods=["POST"])
+def test_user_webhook():
+    if not is_logged_in():
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    user_email = get_current_user_email()
+    data = request.get_json(silent=True) or request.form
+    webhook_url = data.get("webhook_url") or get_webhook_config(user_email).get("webhook_url")
+
+    if not webhook_url:
+        return jsonify({"success": False, "error": "No webhook URL configured. Please enter a valid URL."}), 400
+
+    ok, msg = send_webhook_alert(
+        webhook_url=webhook_url,
+        target_url="https://demo-corp.vulneye.sec",
+        risk_level="High",
+        findings_summary="Simulated Threat Alert: 3 Missing Security Headers & Insecure Port 8080 detected on target infrastructure.",
+        is_test=True
+    )
+    return jsonify({"success": ok, "message": msg})
+
+# ================= DYNAMIC SVG SECURITY BADGE API =================
+@app.route("/api/v1/badge")
+@app.route("/badge/<path:domain>")
+def generate_security_badge(domain=None):
+    target = domain or request.args.get("url") or request.args.get("domain") or "example.com"
+    norm_url = normalize_url(target)
+
+    # Fetch cached assessment if available
+    cached_scan = get_latest_scan_results(norm_url)
+    if cached_scan:
+        risk = cached_scan.get("risk", "Medium")
+    else:
+        risk = "Low" if norm_url.startswith("https") else "Medium"
+
+    if risk == "Low":
+        status_text = "Grade A+ (Secure)"
+        color_left = "#059669"
+        color_right = "#10b981"
+    elif risk == "Medium":
+        status_text = "Grade B (Warning)"
+        color_left = "#d97706"
+        color_right = "#f59e0b"
+    else:
+        status_text = "Grade F (Critical)"
+        color_left = "#dc2626"
+        color_right = "#ef4444"
+
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="220" height="26" viewBox="0 0 220 26" fill="none">
+  <defs>
+    <linearGradient id="bGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#090d16"/>
+      <stop offset="100%" stop-color="#151d2f"/>
+    </linearGradient>
+    <linearGradient id="sGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="{color_left}"/>
+      <stop offset="100%" stop-color="{color_right}"/>
+    </linearGradient>
+  </defs>
+  <rect width="84" height="26" rx="6" fill="url(#bGrad)" stroke="#1e293b" stroke-width="1"/>
+  <rect x="80" width="140" height="26" rx="6" fill="url(#sGrad)"/>
+  <rect x="80" width="4" height="26" fill="url(#bGrad)"/>
+  <g fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10.5" font-weight="700">
+    <text x="8" y="17" fill="#00f0ff">🛡️ VulnEye</text>
+    <text x="90" y="17" fill="#ffffff">{status_text}</text>
+  </g>
+</svg>"""
+    resp = make_response(svg)
+    resp.headers["Content-Type"] = "image/svg+xml"
+    resp.headers["Cache-Control"] = "no-cache, max-age=180"
+    return resp
+
 # ================= FREE CYBER TOOLS SUITE =================
 @app.route("/tools")
 def tools_index():
     return render_template("tools/tools_index.html")
+
+@app.route("/tools/cvss")
+def tool_cvss_calculator():
+    return render_template("tools/cvss_calculator.html")
 
 @app.route("/tools/ssl-checker", methods=["GET", "POST"])
 def tool_ssl_checker():
@@ -848,6 +955,15 @@ def tool_password_analyzer():
         if password:
             result = analyze_password_strength(password)
     return render_template("tools/password_analyzer.html", result=result, password=password)
+
+# ================= CUSTOM ERROR HANDLERS =================
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template("404.html"), 404
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    return render_template("500.html"), 500
 
 # ================= EXPORT & PDF DOWNLOAD =================
 @app.route("/export/json")

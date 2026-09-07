@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 — Sector Unreachable | VulnEye Defense</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        .error-wrapper {
+            min-height: 80vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        .error-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 42, 95, 0.35);
+            border-radius: 24px;
+            padding: 50px 36px;
+            max-width: 580px;
+            width: 100%;
+            backdrop-filter: blur(24px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(255, 42, 95, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        .error-code {
+            font-size: 84px;
+            font-weight: 900;
+            font-family: var(--font-mono);
+            letter-spacing: -2px;
+            line-height: 1;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #ff2a5f, #ff7800);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: textGlitch 2.5s infinite alternate;
+        }
+        @keyframes textGlitch {
+            0% { transform: scale(1); filter: drop-shadow(0 0 5px rgba(255, 42, 95, 0.4)); }
+            50% { transform: scale(1.02); filter: drop-shadow(0 0 16px rgba(255, 42, 95, 0.8)); }
+            100% { transform: scale(0.99); filter: drop-shadow(0 0 8px rgba(255, 120, 0, 0.5)); }
+        }
+        .error-radar-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body class="dark">
+
+    <div class="ambient-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Cyber Navbar -->
+    <header class="navbar">
+        <a href="/dashboard" class="logo">
+            <div class="logo-shield">🛡️</div>
+            <span class="logo-text">VulnEye</span>
+        </a>
+
+        <div class="nav-links">
+            <a href="/dashboard" class="nav-link">📊 Dashboard</a>
+            <a href="/scan" class="nav-link">🎯 Scan</a>
+            <a href="/tools" class="nav-link">🧰 Tools</a>
+        </div>
+
+        <div class="navbar-actions">
+            <button onclick="toggleAudio()" class="navbar-btn" id="audioToggleBtn" title="Toggle SFX">
+                🔊 <span>SFX</span>
+            </button>
+            <button onclick="toggleDark()" class="navbar-btn" id="themeBtn">
+                <span id="themeIcon">☀️</span> <span id="themeText">Light</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="error-wrapper">
+        <div class="error-card">
+            <div class="error-radar-icon">🚨</div>
+            <div class="error-code">404</div>
+            <div class="cyber-badge" style="border-color: #ff2a5f; color: #ff2a5f; margin-bottom: 16px;">
+                SECTOR UNREACHABLE // TARGET NOT FOUND
+            </div>
+            
+            <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6; margin-bottom: 28px;">
+                The perimeter sector or endpoint you are attempting to access does not exist on this coordinate matrix, or security clearance has revoked routing access.
+            </p>
+
+            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                <a href="/dashboard" class="btn-cyber-primary">
+                    🛡️ Return to SOC Command Center
+                </a>
+                <a href="/scan" class="btn-cyber-secondary">
+                    🎯 Launch Scanner
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <script src="{{ url_for('static', filename='cyber-effects.js') }}"></script>
+</body>
+</html>

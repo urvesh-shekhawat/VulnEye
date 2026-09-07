@@ -206,6 +206,52 @@
             {% endif %}
         </div>
 
+        <!-- Automated Threat Alert Webhooks Card -->
+        <div class="results-hero-card" style="margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+                <div>
+                    <h2 style="font-size: 17px; font-weight: 800; color: var(--text-main); margin-bottom: 4px;">
+                        🔔 Automated Breach & Threat Alert Webhooks
+                    </h2>
+                    <p style="font-size: 12px; color: var(--text-dim); margin: 0;">
+                        Stream real-time high-severity security incidents directly to Discord, Slack, or automated SOC SIEM webhooks.
+                    </p>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" class="btn-cyber-secondary" onclick="sendTestWebhook(this)" style="padding: 7px 14px; font-size: 12px;">
+                        ⚡ Send Test Alert
+                    </button>
+                    <button type="button" class="btn-cyber-primary" onclick="saveWebhookSettings(this)" style="padding: 7px 16px; font-size: 12px;">
+                        💾 Save Webhook
+                    </button>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 200px 180px; gap: 14px;">
+                <div>
+                    <label style="font-size: 11px; font-weight: 700; color: var(--text-dim); display: block; margin-bottom: 6px;">DISCORD / SLACK WEBHOOK URL</label>
+                    <input type="url" id="webhookUrlInput" class="cyber-input" style="width: 100%; font-family: var(--font-mono); font-size: 12px;" placeholder="https://discord.com/api/webhooks/... or https://hooks.slack.com/..." value="{{ webhook_config.webhook_url if webhook_config else '' }}">
+                </div>
+                <div>
+                    <label style="font-size: 11px; font-weight: 700; color: var(--text-dim); display: block; margin-bottom: 6px;">CHANNEL PLATFORM</label>
+                    <select id="webhookChannelSelect" class="cyber-input" style="width: 100%; font-size: 12px; height: 38px;">
+                        <option value="discord" {% if webhook_config and webhook_config.channel_type == 'discord' %}selected{% endif %}>👾 Discord Webhook</option>
+                        <option value="slack" {% if webhook_config and webhook_config.channel_type == 'slack' %}selected{% endif %}>💬 Slack Webhook</option>
+                        <option value="custom" {% if webhook_config and webhook_config.channel_type == 'custom' %}selected{% endif %}>🌐 Custom SIEM JSON</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 11px; font-weight: 700; color: var(--text-dim); display: block; margin-bottom: 6px;">ALERT THRESHOLD</label>
+                    <select id="webhookLevelSelect" class="cyber-input" style="width: 100%; font-size: 12px; height: 38px;">
+                        <option value="High & Critical">🚨 High & Critical</option>
+                        <option value="Critical Only">🔥 Critical Only</option>
+                        <option value="All Scans">📋 All Scans</option>
+                    </select>
+                </div>
+            </div>
+            <div id="webhookStatusMsg" style="margin-top: 10px; font-size: 12px; font-weight: 600; display: none;"></div>
+        </div>
+
         <!-- Active API Keys Table -->
         <div class="history-table-wrapper">
             <table class="cyber-table">
@@ -263,5 +309,76 @@
     </main>
 
     <script src="{{ url_for('static', filename='cyber-effects.js') }}"></script>
+    <script>
+        async function saveWebhookSettings(btn) {
+            const url = document.getElementById('webhookUrlInput').value.trim();
+            const channel = document.getElementById('webhookChannelSelect').value;
+            const level = document.getElementById('webhookLevelSelect').value;
+            const msg = document.getElementById('webhookStatusMsg');
+
+            btn.textContent = 'Saving...';
+            try {
+                const res = await fetch('/api/webhook/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ webhook_url: url, channel_type: channel, alert_level: level, is_enabled: true })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    msg.style.display = 'block';
+                    msg.style.color = '#00ff9d';
+                    msg.textContent = '✓ Webhook configuration saved securely!';
+                    if (window.copyToClipboard && window.VulnEyeAudio) window.VulnEyeAudio.playSuccess();
+                } else {
+                    msg.style.display = 'block';
+                    msg.style.color = '#ff2a5f';
+                    msg.textContent = 'Failed to save webhook settings.';
+                }
+            } catch (err) {
+                msg.style.display = 'block';
+                msg.style.color = '#ff2a5f';
+                msg.textContent = 'Error: ' + err.message;
+            } finally {
+                btn.textContent = '💾 Save Webhook';
+                setTimeout(() => { msg.style.display = 'none'; }, 4000);
+            }
+        }
+
+        async function sendTestWebhook(btn) {
+            const url = document.getElementById('webhookUrlInput').value.trim();
+            const msg = document.getElementById('webhookStatusMsg');
+
+            if (!url) {
+                alert('Please enter a Webhook URL first.');
+                return;
+            }
+
+            btn.textContent = 'Sending...';
+            try {
+                const res = await fetch('/api/webhook/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ webhook_url: url })
+                });
+                const data = await res.json();
+                msg.style.display = 'block';
+                if (data.success) {
+                    msg.style.color = '#00ff9d';
+                    msg.textContent = '✓ Test alert dispatched! Check your Discord / Slack channel.';
+                    if (window.VulnEyeAudio) window.VulnEyeAudio.playSuccess();
+                } else {
+                    msg.style.color = '#ff2a5f';
+                    msg.textContent = 'Webhook Test Failed: ' + (data.message || data.error);
+                }
+            } catch (err) {
+                msg.style.display = 'block';
+                msg.style.color = '#ff2a5f';
+                msg.textContent = 'Network error while testing webhook.';
+            } finally {
+                btn.textContent = '⚡ Send Test Alert';
+                setTimeout(() => { msg.style.display = 'none'; }, 5000);
+            }
+        }
+    </script>
 </body>
 </html>

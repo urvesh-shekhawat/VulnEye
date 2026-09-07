@@ -173,8 +173,53 @@
                     </svg>
                     JSON
                 </a>
+
+                <!-- Embed Badge Button -->
+                <button type="button" class="btn-cyber-secondary" onclick="openBadgeModal()" style="display: inline-flex; align-items: center; gap: 6px; padding: 10px 14px;">
+                    🛡️ Badge
+                </button>
             </div>
         </section>
+
+        <!-- Embed Badge Modal -->
+        <div id="badgeModal" style="display: none; position: fixed; inset: 0; z-index: 100000; background: rgba(0,0,0,0.85); backdrop-filter: blur(16px); align-items: center; justify-content: center; padding: 20px;">
+            <div style="background: var(--card-bg); border: 1px solid var(--primary-cyan); box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 30px rgba(0,240,255,0.3); border-radius: 20px; max-width: 540px; width: 100%; padding: 28px; position: relative;">
+                <button type="button" onclick="closeBadgeModal()" style="position: absolute; top: 18px; right: 18px; background: transparent; border: none; font-size: 20px; color: var(--text-dim); cursor: pointer;">✕</button>
+                <div style="font-size: 20px; font-weight: 800; color: var(--text-main); margin-bottom: 8px;">
+                    🛡️ Live Embeddable Security Badge
+                </div>
+                <p style="font-size: 13px; color: var(--text-dim); margin-bottom: 18px;">
+                    Embed this live dynamically updating SVG badge into your GitHub README, website footer, or compliance documentation.
+                </p>
+
+                <!-- Live Badge Preview -->
+                <div style="background: rgba(0,0,0,0.4); border: 1px dashed var(--card-border); border-radius: 12px; padding: 18px; text-align: center; margin-bottom: 18px;">
+                    <img src="/api/v1/badge?url={{ results.url|urlencode }}" alt="VulnEye Security Grade" style="height: 28px; max-width: 100%;">
+                </div>
+
+                <!-- Markdown Code -->
+                <div style="margin-bottom: 14px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 11.5px; font-weight: 700; color: var(--text-dim); margin-bottom: 6px;">
+                        <span>MARKDOWN (GITHUB README)</span>
+                        <a href="javascript:void(0)" onclick="copyBadgeSnippet('mdBadgeCode', this)" style="color: var(--primary-cyan); text-decoration: none;">Copy Markdown</a>
+                    </div>
+                    <textarea id="mdBadgeCode" class="cyber-input" style="width: 100%; height: 50px; font-family: var(--font-mono); font-size: 11px; resize: none;" readonly>[![VulnEye Security Grade](https://vulneye.sec/api/v1/badge?url={{ results.url|urlencode }})](https://vulneye.sec/)</textarea>
+                </div>
+
+                <!-- HTML Embed Code -->
+                <div style="margin-bottom: 18px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 11.5px; font-weight: 700; color: var(--text-dim); margin-bottom: 6px;">
+                        <span>HTML EMBED SNIPPET</span>
+                        <a href="javascript:void(0)" onclick="copyBadgeSnippet('htmlBadgeCode', this)" style="color: var(--primary-cyan); text-decoration: none;">Copy HTML</a>
+                    </div>
+                    <textarea id="htmlBadgeCode" class="cyber-input" style="width: 100%; height: 50px; font-family: var(--font-mono); font-size: 11px; resize: none;" readonly><a href="https://vulneye.sec/"><img src="https://vulneye.sec/api/v1/badge?url={{ results.url|urlencode }}" alt="VulnEye Security Grade" /></a></textarea>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end;">
+                    <button type="button" class="btn-cyber-primary" onclick="closeBadgeModal()" style="padding: 8px 20px;">Done</button>
+                </div>
+            </div>
+        </div>
 
         <!-- Visual Analytics Dashboard (ApexCharts) -->
         {% if results.reachable %}
@@ -600,6 +645,34 @@
                 },
                 tooltip: { theme: isDark ? 'dark' : 'light' }
             });
+        };
+
+        window.openBadgeModal = function() {
+            const modal = document.getElementById('badgeModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                if (window.VulnEyeAudio) window.VulnEyeAudio.playModal(true);
+            }
+        };
+
+        window.closeBadgeModal = function() {
+            const modal = document.getElementById('badgeModal');
+            if (modal) {
+                modal.style.display = 'none';
+                if (window.VulnEyeAudio) window.VulnEyeAudio.playModal(false);
+            }
+        };
+
+        window.copyBadgeSnippet = function(elemId, btn) {
+            const textarea = document.getElementById(elemId);
+            if (textarea) {
+                navigator.clipboard.writeText(textarea.value).then(() => {
+                    const orig = btn.textContent;
+                    btn.textContent = '✓ Copied!';
+                    if (window.VulnEyeAudio) window.VulnEyeAudio.playSuccess();
+                    setTimeout(() => { btn.textContent = orig; }, 2000);
+                });
+            }
         };
 
         window.addEventListener('DOMContentLoaded', initAuditCharts);

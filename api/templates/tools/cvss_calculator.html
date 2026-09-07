@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CVSS v3.1 Threat Calculator — VulnEye CyberSentinel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .cvss-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 30px 20px 80px 20px;
+        }
+        .cvss-hero {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .cvss-hero h1 {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--primary-cyan), #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .cvss-layout {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 24px;
+            align-items: start;
+        }
+        @media (max-width: 960px) {
+            .cvss-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        .cvss-metric-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 22px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(16px);
+        }
+        .cvss-group-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--primary-cyan);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.12);
+            padding-bottom: 8px;
+        }
+        .metric-row {
+            margin-bottom: 16px;
+        }
+        .metric-row:last-child {
+            margin-bottom: 0;
+        }
+        .metric-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .metric-label span.desc {
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--text-muted);
+        }
+        .metric-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .cvss-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--card-border);
+            color: var(--text-muted);
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .cvss-btn:hover {
+            border-color: rgba(0, 240, 255, 0.4);
+            color: var(--text-main);
+            transform: translateY(-1px);
+        }
+        .cvss-btn.active {
+            background: rgba(0, 240, 255, 0.15);
+            border-color: var(--primary-cyan);
+            color: var(--primary-cyan);
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.25);
+        }
+        /* Sticky Score Summary Panel */
+        .cvss-score-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 24px;
+            text-align: center;
+            position: sticky;
+            top: 90px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            margin: 0 auto 16px auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 4px solid var(--primary-cyan);
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.35);
+            transition: all 0.3s ease;
+        }
+        .score-number {
+            font-size: 38px;
+            font-weight: 900;
+            font-family: var(--font-mono);
+            line-height: 1;
+            color: var(--text-main);
+        }
+        .score-scale {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+        .severity-badge-pill {
+            display: inline-block;
+            padding: 5px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+        }
+        .severity-critical { background: rgba(255, 42, 95, 0.2); border: 1px solid #ff2a5f; color: #ff2a5f; box-shadow: 0 0 14px rgba(255, 42, 95, 0.4); }
+        .severity-high { background: rgba(255, 120, 0, 0.2); border: 1px solid #ff7800; color: #ff7800; box-shadow: 0 0 14px rgba(255, 120, 0, 0.4); }
+        .severity-medium { background: rgba(255, 183, 3, 0.2); border: 1px solid #ffb703; color: #ffb703; box-shadow: 0 0 14px rgba(255, 183, 3, 0.4); }
+        .severity-low { background: rgba(0, 255, 157, 0.2); border: 1px solid #00ff9d; color: #00ff9d; box-shadow: 0 0 14px rgba(0, 255, 157, 0.4); }
+        .severity-none { background: rgba(160, 174, 192, 0.2); border: 1px solid #a0aec0; color: #a0aec0; }
+        
+        .vector-box {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 10px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            word-break: break-all;
+            color: var(--primary-cyan);
+            margin-bottom: 16px;
+            text-align: left;
+        }
+        .preset-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 14px;
+            justify-content: center;
+        }
+        .preset-chip {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--card-border);
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .preset-chip:hover {
+            border-color: #a855f7;
+            color: #ffffff;
+            background: rgba(168, 85, 247, 0.15);
+        }
+    </style>
+</head>
+<body class="dark">
+
+    <div class="ambient-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Cyber Navbar -->
+    <header class="navbar">
+        <a href="/dashboard" class="logo">
+            <div class="logo-shield">🛡️</div>
+            <span class="logo-text">VulnEye</span>
+        </a>
+
+        <div class="nav-links">
+            <a href="/tools" class="nav-link">🧰 All Tools</a>
+            <a href="/tools/cvss" class="nav-link active">⚖️ CVSS Calculator</a>
+            <a href="/dashboard" class="nav-link">📊 SOC Dashboard</a>
+            <a href="/analyzer" class="nav-link">🤖 AI Explainer</a>
+            <a href="/guide" class="nav-link">📖 Handbook</a>
+        </div>
+
+        <div class="navbar-actions">
+            <button onclick="toggleAudio()" class="navbar-btn" id="audioToggleBtn" title="Toggle SFX">
+                🔊 <span>SFX</span>
+            </button>
+            <button onclick="toggleDark()" class="navbar-btn" id="themeBtn">
+                <span id="themeIcon">☀️</span> <span id="themeText">Light</span>
+            </button>
+
+            {% if session.get('user') %}
+            <div class="user-profile-dropdown" id="userProfileDropdown">
+                <button type="button" class="user-profile-badge avatar-only" id="userProfileBtn" onclick="toggleUserProfileMenu(event)" title="{{ session['user'].get('name') }} (Account Profile)">
+                    <img src="{{ session['user'].get('picture') }}" class="user-profile-avatar" alt="Avatar">
+                    <span class="user-online-status-dot"></span>
+                </button>
+
+                <div class="user-profile-menu" id="userProfileMenu">
+                    <div class="profile-menu-header">
+                        <img src="{{ session['user'].get('picture') }}" class="profile-menu-avatar-lg" alt="Avatar">
+                        <div class="profile-menu-info">
+                            <div class="profile-menu-fullname">{{ session['user'].get('name') }}</div>
+                            <div class="profile-menu-email">{{ session['user'].get('email', '') }}</div>
+                            <span class="profile-menu-badge-pill">🛡️ {{ session.get('user', {}).get('plan', 'PRO PLAN')|upper }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-quick-stats">
+                        <div class="profile-stat-item">
+                            <span class="profile-stat-label">Clearance</span>
+                            <span class="profile-stat-val">Verified SecOps</span>
+                        </div>
+                        <div class="profile-stat-item">
+                            <span class="profile-stat-label">Telemetry</span>
+                            <span class="profile-stat-val">24/7 Active</span>
+                        </div>
+                    </div>
+
+                    <div class="profile-menu-links">
+                        <a href="/settings" class="profile-menu-link">⚙️ <span>Account & API Keys</span></a>
+                        <a href="/dashboard" class="profile-menu-link">📊 <span>SOC Dashboard</span></a>
+                        <a href="/history" class="profile-menu-link">📜 <span>Scan History</span></a>
+                        <a href="/monitoring" class="profile-menu-link">🔄 <span>Watchlist Monitor</span></a>
+                        <a href="/pricing" class="profile-menu-link">💳 <span>Upgrade & Billing</span></a>
+                        <a href="/tools" class="profile-menu-link">🧰 <span>Free Cyber Tools</span></a>
+                    </div>
+
+                    <div class="profile-menu-divider"></div>
+
+                    <a href="/logout" class="profile-menu-logout">
+                        <span>🚪 Logout</span>
+                        <span style="font-size: 10px; opacity: 0.8; font-family: var(--font-mono);">SIGN OUT</span>
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="cvss-container">
+            <div class="cvss-hero">
+                <div class="cyber-badge" style="margin-bottom: 12px;">⚖️ NIST FIRST COMPLIANT</div>
+                <h1>CVSS v3.1 Threat Scoring Calculator</h1>
+                <p style="color: var(--text-muted); font-size: 14px; max-width: 600px; margin: 0 auto;">
+                    Standardized Common Vulnerability Scoring System v3.1 calculator for security analysts, penetration testers, and compliance audits.
+                </p>
+            </div>
+
+            <div class="cvss-layout">
+                <!-- Left: Metric Selection Cards -->
+                <div class="cvss-metrics-column">
+                    
+                    <!-- Exploitability Metrics -->
+                    <div class="cvss-metric-card">
+                        <div class="cvss-group-title">🎯 Exploitability Metrics</div>
+                        
+                        <!-- Attack Vector -->
+                        <div class="metric-row">
+                            <div class="metric-label">
+                                <span>Attack Vector (AV)</span>
+                                <span class="desc">Where vulnerability is exploited from</span>
+                            </div>
+                            <div class="metric-options" data-metric="AV">
+                                <button type="button" class="cvss-btn active" data-val="N" data-score="0.85">Network (N)</button>
+                                <button type="button" class="cvss-btn" data-val="A" data-score="0.62">Adjacent (A)</button>
+                                <button type="button" class="cvss-btn" data-val="L" data-score="0.55">Local (L)</button>
+                                <button type="button" class="cvss-btn" data-val="P" data-score="0.2">Physical (P)</button>
+                            </div>
+                        </div>
+
+                        <!-- Attack Complexity -->
+                        <div class="metric-row">
+                            <div class="metric-label">
+                                <span>Attack Complexity (AC)</span>
+                                <span class="desc">Conditions beyond attacker's control</span>
+                            </div>
+                            <div class="metric-options" data-metric="AC">
+                                <button type="button" class="cvss-btn active" data-val="L" data-score="0.77">Low (L)</button>
+                                <button type="button" class="cvss-btn" data-val="H" data-score="0.44">High (H)</button>
+                            </div>
+                        </div>
+
+                        <!-- Privileges Required -->
+                        <div class="metric-row">
+                            <div class="metric-label">
+                                <span>Privileges Required (PR)</span>
+                                <span class="desc">Access level needed prior to attack</span>
+                            </div>
+                            <div class="metric-options" data-metric="PR">
+                                <button type="button" class="cvss-btn active" data-val="N" data-score="0.85" data-score-changed="0.85">None (N)</button>
+                                <button type="button" class="cvss-btn" data-val="L" data-score="0.62" data-score-changed="0.68">Low (L)</button>
+                                <button type="button" class="cvss-btn" data-val="H" data-score="0.27" data-score-changed="0.5">High (H)</button>
+                            </div>
+                        </div>
+
+                        <!-- User Interaction -->
+                        <div class="metric-row">
+                            <div class="metric-label">
+                                <span>User Interaction (UI)</span>
+                                <span class="desc">Human participation requirement</span>
+                            </div>
+                            <div class="metric-options" data-metric="UI">
+                                <button type="button" class="cvss-btn active" data-val="N" data-score="0.85">None (N)</button>
+                                <button type="button" class="cvss-btn" data-val="R" data-score="0.62">Required (R)</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scope & Impact Metrics -->
+                    <div class="cvss-metric-card">
+                        <div class="cvss-group-title">💥 Scope & Impact Metrics</div>
+
+                        <!-- Scope -->
+                        <div class="metric-row">
+                            <div class="metric-label">
+                                <span>Scope (S)</span>
+                                <span class="desc">Can attacker impact resources beyond original security scope?</span>
+                            </div>
+                            <div class="metric-options" data-metric="S">
+                                <button type="button" class="cvss-btn active" data-val="U">Unchanged (U)</button>
+                                <button type="button" class="cvss-btn" data-val="C">Changed (C)</button>
+                            </div>
+                        </div>
+
+                        <!-- Confidentiality Impact -->
+                        <div class="metric-row">
+                            <div class="metric-label">
+                                <span>Confidentiality Impact (C)</span>
+                                <span class="desc">Data exposure or theft severity</span>
+                            </div>
+                            <div class="metric-options" data-metric="C">
+                                <button type="button" class="cvss-btn" data-val="N" data-score="0">None (N)</button>
+                                <button type="button" class="cvss-btn" data-val="L" data-score="0.22">Low (L)</button>
+                                <button type="button" class="cvss-btn active" data-val="H" data-score="0.56">High (H)</button>
+                            </div>
+                        </div>
+
+                        <!-- Integrity Impact -->
+                        <div class="metric-row">
+                            <div class="metric-label">
+                                <span>Integrity Impact (I)</span>
+                                <span class="desc">Unauthorized data modification or tampering</span>
+                            </div>
+                            <div class="metric-options" data-metric="I">
+                                <button type="button" class="cvss-btn" data-val="N" data-score="0">None (N)</button>
+                                <button type="button" class="cvss-btn" data-val="L" data-score="0.22">Low (L)</button>
+                                <button type="button" class="cvss-btn active" data-val="H" data-score="0.56">High (H)</button>
+                            </div>
+                        </div>
+
+                        <!-- Availability Impact -->
+                        <div class="metric-row">
+                            <div class="metric-label">
+                                <span>Availability Impact (A)</span>
+                                <span class="desc">Service disruption, DOS, or downtime</span>
+                            </div>
+                            <div class="metric-options" data-metric="A">
+                                <button type="button" class="cvss-btn" data-val="N" data-score="0">None (N)</button>
+                                <button type="button" class="cvss-btn" data-val="L" data-score="0.22">Low (L)</button>
+                                <button type="button" class="cvss-btn active" data-val="H" data-score="0.56">High (H)</button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Right: Sticky Score Summary Panel -->
+                <div class="cvss-score-column">
+                    <div class="cvss-score-panel">
+                        <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px;">
+                            BASE CVSS v3.1 SCORE
+                        </div>
+
+                        <div class="score-circle" id="scoreCircle">
+                            <div class="score-number" id="scoreValue">9.8</div>
+                            <div class="score-scale">/ 10.0</div>
+                        </div>
+
+                        <div class="severity-badge-pill severity-critical" id="severityBadge">CRITICAL SEVERITY</div>
+
+                        <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-align: left; margin-bottom: 6px;">
+                            CVSS VECTOR STRING:
+                        </div>
+                        <div class="vector-box" id="vectorString">
+                            CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
+                        </div>
+
+                        <button type="button" class="btn-cyber-primary" style="width: 100%; justify-content: center; margin-bottom: 12px;" onclick="copyCvssVector(this)">
+                            📋 Copy CVSS Vector
+                        </button>
+
+                        <div style="margin-top: 20px; border-top: 1px solid var(--card-border); padding-top: 14px;">
+                            <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">
+                                QUICK THREAT PRESETS:
+                            </div>
+                            <div class="preset-chips">
+                                <span class="preset-chip" onclick="loadPreset('rce')">🔥 Critical RCE (9.8)</span>
+                                <span class="preset-chip" onclick="loadPreset('sqli')">💉 SQL Injection (8.5)</span>
+                                <span class="preset-chip" onclick="loadPreset('xss')">⚡ Stored XSS (6.1)</span>
+                                <span class="preset-chip" onclick="loadPreset('csrf')">🔄 CSRF (4.3)</span>
+                                <span class="preset-chip" onclick="loadPreset('info')">📂 Info Leak (5.3)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="{{ url_for('static', filename='cyber-effects.js') }}"></script>
+    <script>
+        // Official NIST CVSS v3.1 Base Score Algorithm
+        function calculateCvss() {
+            const getVal = (m) => document.querySelector(`.metric-options[data-metric="${m}"] .cvss-btn.active`).dataset.val;
+            const getScore = (m) => parseFloat(document.querySelector(`.metric-options[data-metric="${m}"] .cvss-btn.active`).dataset.score);
+
+            const AV = getVal('AV');
+            const AC = getVal('AC');
+            const PR = getVal('PR');
+            const UI = getVal('UI');
+            const S  = getVal('S');
+            const C  = getVal('C');
+            const I  = getVal('I');
+            const A  = getVal('A');
+
+            // Exploitability sub-scores
+            const avScore = getScore('AV');
+            const acScore = getScore('AC');
+            const uiScore = getScore('UI');
+            
+            // PR depends on Scope
+            const prBtn = document.querySelector(`.metric-options[data-metric="PR"] .cvss-btn.active`);
+            const prScore = S === 'C' ? parseFloat(prBtn.dataset.scoreChanged) : parseFloat(prBtn.dataset.score);
+
+            const exploitability = 8.22 * avScore * acScore * prScore * uiScore;
+
+            // Impact sub-scores
+            const cScore = getScore('C');
+            const iScore = getScore('I');
+            const aScore = getScore('A');
+
+            const iss = 1 - ((1 - cScore) * (1 - iScore) * (1 - aScore));
+            
+            let impact = 0;
+            if (S === 'U') {
+                impact = 6.42 * iss;
+            } else {
+                impact = 7.52 * (iss - 0.029) - 3.25 * Math.pow(iss - 0.02, 15);
+            }
+
+            let baseScore = 0;
+            if (impact <= 0) {
+                baseScore = 0;
+            } else if (S === 'U') {
+                baseScore = Math.min(10, Math.ceil(Math.min(impact + exploitability, 10) * 10) / 10);
+            } else {
+                baseScore = Math.min(10, Math.ceil(Math.min(1.08 * (impact + exploitability), 10) * 10) / 10);
+            }
+
+            baseScore = Math.max(0, Math.min(10, baseScore)).toFixed(1);
+
+            // Vector String
+            const vector = `CVSS:3.1/AV:${AV}/AC:${AC}/PR:${PR}/UI:${UI}/S:${S}/C:${C}/I:${I}/A:${A}`;
+
+            // Update UI
+            document.getElementById('scoreValue').textContent = baseScore;
+            document.getElementById('vectorString').textContent = vector;
+
+            // Update Severity Badge & Colors
+            const badge = document.getElementById('severityBadge');
+            const circle = document.getElementById('scoreCircle');
+            badge.className = 'severity-badge-pill';
+
+            if (baseScore == 0.0) {
+                badge.textContent = 'NONE';
+                badge.classList.add('severity-none');
+                circle.style.borderColor = '#a0aec0';
+                circle.style.boxShadow = '0 0 15px rgba(160, 174, 192, 0.2)';
+            } else if (baseScore <= 3.9) {
+                badge.textContent = 'LOW SEVERITY';
+                badge.classList.add('severity-low');
+                circle.style.borderColor = '#00ff9d';
+                circle.style.boxShadow = '0 0 25px rgba(0, 255, 157, 0.35)';
+            } else if (baseScore <= 6.9) {
+                badge.textContent = 'MEDIUM SEVERITY';
+                badge.classList.add('severity-medium');
+                circle.style.borderColor = '#ffb703';
+                circle.style.boxShadow = '0 0 25px rgba(255, 183, 3, 0.35)';
+            } else if (baseScore <= 8.9) {
+                badge.textContent = 'HIGH SEVERITY';
+                badge.classList.add('severity-high');
+                circle.style.borderColor = '#ff7800';
+                circle.style.boxShadow = '0 0 25px rgba(255, 120, 0, 0.4)';
+            } else {
+                badge.textContent = 'CRITICAL SEVERITY';
+                badge.classList.add('severity-critical');
+                circle.style.borderColor = '#ff2a5f';
+                circle.style.boxShadow = '0 0 30px rgba(255, 42, 95, 0.5)';
+            }
+        }
+
+        // Attach Click Listeners to all metric options
+        document.querySelectorAll('.metric-options .cvss-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const parent = this.parentElement;
+                parent.querySelectorAll('.cvss-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                calculateCvss();
+            });
+        });
+
+        function copyCvssVector(btn) {
+            const text = document.getElementById('vectorString').textContent.trim();
+            if (window.copyToClipboard) {
+                window.copyToClipboard(text, btn);
+            } else {
+                navigator.clipboard.writeText(text);
+                btn.textContent = '✓ Copied!';
+                setTimeout(() => { btn.textContent = '📋 Copy CVSS Vector'; }, 2000);
+            }
+        }
+
+        // Preset Profiles
+        function loadPreset(preset) {
+            const presets = {
+                rce:  { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'H' },
+                sqli: { AV: 'N', AC: 'L', PR: 'L', UI: 'N', S: 'U', C: 'H', I: 'H', A: 'N' },
+                xss:  { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'C', C: 'L', I: 'L', A: 'N' },
+                csrf: { AV: 'N', AC: 'L', PR: 'N', UI: 'R', S: 'U', C: 'N', I: 'L', A: 'N' },
+                info: { AV: 'N', AC: 'L', PR: 'N', UI: 'N', S: 'U', C: 'L', I: 'N', A: 'N' }
+            };
+
+            const config = presets[preset];
+            if (!config) return;
+
+            Object.entries(config).forEach(([metric, val]) => {
+                const container = document.querySelector(`.metric-options[data-metric="${metric}"]`);
+                if (container) {
+                    container.querySelectorAll('.cvss-btn').forEach(b => {
+                        b.classList.toggle('active', b.dataset.val === val);
+                    });
+                }
+            });
+
+            calculateCvss();
+        }
+
+        // Initial Calculation
+        calculateCvss();
+    </script>
+</body>
+</html>
