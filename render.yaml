@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: vulneye-scanner
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vulneye-db
+          property: connectionString
+
+databases:
+  - name: vulneye-db
+    databaseName: vulneye
+    user: vulneye_user
+    plan: free

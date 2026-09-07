@@ -1,111 +1,98 @@
 import os
-import sqlite3
 import json
+from datetime import datetime
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime
+from sqlalchemy.orm import declarative_base, sessionmaker
 
-# On Vercel, use /tmp/scans.db since root is read-only.
-if os.environ.get("VERCEL"):
-    DB_NAME = "/tmp/scans.db"
+# 1. Determine Database URL
+# Render provides DATABASE_URL (often postgres://...) which SQLAlchemy requires as postgresql://
+raw_db_url = os.environ.get("DATABASE_URL")
+if raw_db_url:
+    if raw_db_url.startswith("postgres://"):
+        DATABASE_URL = raw_db_url.replace("postgres://", "postgresql://", 1)
+    else:
+        DATABASE_URL = raw_db_url
 else:
-    DB_NAME = "scans.db"
+    # Local or serverless SQLite fallback
+    if os.environ.get("VERCEL"):
+        DATABASE_URL = "sqlite:////tmp/scans.db"
+    else:
+        DATABASE_URL = "sqlite:///scans.db"
+
+# 2. Setup SQLAlchemy Engine and Session
+connect_args = {}
+if DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+
+engine = create_engine(
+    DATABASE_URL,
+    connect_args=connect_args,
+    pool_pre_ping=True,
+    echo=False
+)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+# 3. Model Definition
+class ScanHistory(Base):
+    __tablename__ = "scan_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    url = Column(String(500), nullable=False, index=True)
+    scan_time = Column(DateTime, default=datetime.utcnow)
+    reachable = Column(String(50), nullable=True)
+    status_code = Column(String(50), nullable=True)
+    https = Column(String(50), nullable=True)
+    risk = Column(String(50), nullable=True)
+    raw_results = Column(Text, nullable=True)
 
 def init_db():
-    db_dir = os.path.dirname(DB_NAME)
-    if db_dir and not os.path.exists(db_dir):
-        os.makedirs(db_dir, exist_ok=True)
-
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS scan_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            url TEXT,
-            scan_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            reachable TEXT,
-            status_code TEXT,
-            https TEXT,
-            risk TEXT,
-            raw_results TEXT
-        )
-    """)
-
-    # Self-healing column addition for existing databases
-    try:
-        cursor.execute("ALTER TABLE scan_history ADD COLUMN raw_results TEXT")
-    except sqlite3.OperationalError:
-        # Column already exists
-        pass
-
-    conn.commit()
-    conn.close()
-
-def get_connection():
-    # Automatically initialize DB if running on Vercel and it was wiped from ephemeral /tmp
-    if DB_NAME.startswith("/tmp/") and not os.path.exists(DB_NAME):
-        init_db()
-    
-    # Run a quick check/migration to ensure raw_results column is present
-    conn = sqlite3.connect(DB_NAME)
-    try:
-        cursor = conn.cursor()
-        cursor.execute("SELECT raw_results FROM scan_history LIMIT 1")
-    except sqlite3.OperationalError:
-        try:
-            cursor.execute("ALTER TABLE scan_history ADD COLUMN raw_results TEXT")
-            conn.commit()
-        except:
-            pass
-    return conn
+    Base.metadata.create_all(bind=engine)
 
 def save_scan(results):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        INSERT INTO scan_history (url, reachable, status_code, https, risk, raw_results)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (
-        results["url"],
-        str(results["reachable"]),
-        str(results["status_code"]),
-        str(results["https"]),
-        results["risk"],
-        json.dumps(results)
-    ))
-
-    conn.commit()
-    conn.close()
+    init_db()
+    session = SessionLocal()
+    try:
+        scan_entry = ScanHistory(
+            url=results.get("url", ""),
+            reachable=str(results.get("reachable", False)),
+            status_code=str(results.get("status_code", "")),
+            https=str(results.get("https", False)),
+            risk=str(results.get("risk", "Unknown")),
+            raw_results=json.dumps(results)
+        )
+        session.add(scan_entry)
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        raise e
+    finally:
+        session.close()
 
 def get_all_scans():
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT id, url, scan_time, reachable, status_code, https, risk
-        FROM scan_history
-        ORDER BY id DESC
-    """)
-
-    rows = cursor.fetchall()
-    conn.close()
-    return rows
+    init_db()
+    session = SessionLocal()
+    try:
+        scans = session.query(ScanHistory).order_by(ScanHistory.id.desc()).all()
+        # Returns tuple format (id, url, scan_time, reachable, status_code, https, risk)
+        result = []
+        for s in scans:
+            time_str = s.scan_time.strftime("%Y-%m-%d %H:%M:%S") if s.scan_time else ""
+            result.append((s.id, s.url, time_str, s.reachable, s.status_code, s.https, s.risk))
+        return result
+    finally:
+        session.close()
 
 def get_latest_scan_results(url):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT raw_results FROM scan_history
-        WHERE url = ?
-        ORDER BY id DESC LIMIT 1
-    """, (url,))
-
-    row = cursor.fetchone()
-    conn.close()
-
-    if row and row[0]:
-        try:
-            return json.loads(row[0])
-        except Exception:
-            pass
-    return None
+    init_db()
+    session = SessionLocal()
+    try:
+        scan = session.query(ScanHistory).filter(ScanHistory.url == url).order_by(ScanHistory.id.desc()).first()
+        if scan and scan.raw_results:
+            try:
+                return json.loads(scan.raw_results)
+            except Exception:
+                pass
+        return None
+    finally:
+        session.close()
