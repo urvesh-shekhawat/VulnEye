@@ -60,9 +60,20 @@ def login():
     
     warning = None
     if not client_id or not client_secret:
-        warning = "Google OAuth credentials are not configured in your environment. Please copy .env.example to .env and configure them."
+        warning = "Google OAuth credentials are not configured in your environment. You can use 'Demo / Guest Analyst' mode or configure .env."
         
     return render_template("login.html", warning=warning)
+
+@app.route("/login/guest")
+@app.route("/login/demo")
+def login_guest():
+    session['user'] = {
+        'name': 'Cyber Analyst',
+        'email': 'analyst@vulneye.sec',
+        'picture': 'https://api.dicebear.com/7.x/bottts/svg?seed=VulnEyeSecurity'
+    }
+    session['logged_in'] = True
+    return redirect(url_for("home"))
 
 @app.route("/login/google")
 def login_google():

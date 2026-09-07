@@ -3,180 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scanning Target - VulnEye</title>
+    <title>Scanning Target - VulnEye Cyber Sentinel</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-        /* Progress loader specific styles */
-        .progress-card {
-            width: 100%;
-            max-width: 480px;
-            margin: 0 auto;
-            text-align: center;
-        }
-
-        /* Circular Spinner Animation */
-        .spinner-container {
-            display: inline-flex;
-            justify-content: center;
-            align-items: center;
-            position: relative;
-            width: 100px;
-            height: 100px;
-            margin-bottom: 28px;
-        }
-
-        .spinner-svg {
-            animation: rotate-spinner 2s linear infinite;
-            width: 100px;
-            height: 100px;
-        }
-
-        .spinner-circle {
-            stroke: var(--accent-blue);
-            stroke-linecap: round;
-            stroke-dasharray: 283;
-            stroke-dashoffset: 280;
-            animation: dash-spinner 1.5s ease-in-out infinite;
-        }
-
-        body.dark .spinner-circle {
-            stroke: var(--accent-purple);
-        }
-
-        @keyframes rotate-spinner {
-            100% { transform: rotate(360deg); }
-        }
-
-        @keyframes dash-spinner {
-            0% { stroke-dashoffset: 280; }
-            50% { stroke-dashoffset: 75; transform: rotate(45deg); }
-            100% { stroke-dashoffset: 280; transform: rotate(360deg); }
-        }
-
-        .spinner-shield {
-            position: absolute;
-            font-size: 32px;
-            animation: pulse-shield 1.5s ease-in-out infinite alternate;
-        }
-
-        @keyframes pulse-shield {
-            0% { transform: scale(0.9); opacity: 0.8; }
-            100% { transform: scale(1.1); opacity: 1; }
-        }
-
-        /* Smooth Progress Bar */
-        .progress-bar-bg {
-            background: rgba(0, 0, 0, 0.05);
-            border-radius: 12px;
-            height: 8px;
-            overflow: hidden;
-            width: 100%;
-            margin: 24px 0;
-            border: 1px solid rgba(0, 0, 0, 0.02);
-            position: relative;
-        }
-
-        body.dark .progress-bar-bg {
-            background: rgba(255, 255, 255, 0.05);
-            border-color: rgba(255, 255, 255, 0.02);
-        }
-
-        .progress-bar-fill {
-            height: 100%;
-            width: 5%;
-            background: linear-gradient(90deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
-            border-radius: 12px;
-            transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            box-shadow: 0 0 10px var(--glow-color);
-        }
-
-        /* Status Steps List */
-        .status-steps {
-            text-align: left;
-            margin-top: 32px;
-            background: rgba(0, 0, 0, 0.02);
-            border: 1px solid rgba(0, 0, 0, 0.03);
-            border-radius: 16px;
-            padding: 20px 24px;
-        }
-
-        body.dark .status-steps {
-            background: rgba(255, 255, 255, 0.02);
-            border-color: rgba(255, 255, 255, 0.03);
-        }
-
         .step-item {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 10px 0;
+            justify-content: space-between;
+            padding: 12px 18px;
             font-size: 14px;
             font-weight: 600;
             color: var(--text-muted);
-            transition: color 0.3s ease;
-        }
-
-        .step-item:not(:last-child) {
-            border-bottom: 1px solid rgba(0, 0, 0, 0.03);
-        }
-
-        body.dark .step-item:not(:last-child) {
-            border-bottom-color: rgba(255, 255, 255, 0.03);
-        }
-
-        .step-icon {
-            display: inline-flex;
-            justify-content: center;
-            align-items: center;
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            border: 1.5px solid var(--text-muted);
-            opacity: 0.5;
-            font-size: 10px;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.12);
+            border: 1px solid var(--card-border);
+            margin-bottom: 8px;
             transition: all 0.3s ease;
         }
 
-        /* Status Modifiers */
+        body:not(.dark) .step-item {
+            background: rgba(0, 0, 0, 0.02);
+        }
+
         .step-item.active {
-            color: var(--accent-blue);
-        }
-
-        body.dark .step-item.active {
-            color: var(--accent-purple);
-        }
-
-        .step-item.active .step-icon {
-            border-color: currentColor;
-            opacity: 1;
-            box-shadow: 0 0 8px var(--glow-color);
-            animation: pulse-icon 1s infinite alternate;
-        }
-
-        @keyframes pulse-icon {
-            0% { transform: scale(0.95); }
-            100% { transform: scale(1.05); }
+            color: var(--primary-cyan);
+            border-color: var(--primary-cyan);
+            background: rgba(0, 240, 255, 0.08);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
         }
 
         .step-item.completed {
-            color: #10b981;
+            color: var(--color-success);
+            border-color: rgba(0, 255, 157, 0.3);
+            background: rgba(0, 255, 157, 0.05);
         }
 
-        .step-item.completed .step-icon {
-            background-color: #10b981;
-            border-color: #10b981;
-            color: white;
-            opacity: 1;
+        .step-badge {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
         }
 
-        .step-item.waiting {
-            opacity: 0.6;
+        .step-item.active .step-badge {
+            background: var(--primary-cyan);
+            color: #000000;
+            font-weight: 800;
+        }
+
+        .step-item.completed .step-badge {
+            background: var(--color-success);
+            color: #000000;
+            font-weight: 800;
         }
     </style>
 </head>
-<body>
+<body class="dark">
 
-    <!-- Ambient glowing backgrounds -->
+    <!-- Ambient Glowing Background Mesh -->
     <div class="ambient-blobs">
         <div class="blob blob-1"></div>
         <div class="blob blob-2"></div>
@@ -185,90 +70,141 @@
 
     <!-- Header Navbar -->
     <header class="navbar">
-        <div class="logo">
-            <span style="font-size: 24px;">🛡️</span> VulnEye
+        <a href="/" class="logo">
+            <div class="logo-shield">🛡️</div>
+            <span class="logo-text">VulnEye</span>
+        </a>
+
+        <div class="nav-links">
+            <button onclick="toggleAudio()" class="navbar-btn" id="audioToggleBtn" title="Toggle SFX">
+                🔊 <span>SFX</span>
+            </button>
+            <button onclick="toggleDark()" class="navbar-btn" id="themeBtn">
+                <span id="themeIcon">☀️</span> <span id="themeText">Light</span>
+            </button>
         </div>
-        <button onclick="toggleDark()" class="navbar-btn" id="themeBtn" style="padding: 8px 16px;">
-            <span id="themeIcon">🌙</span> <span id="themeText">Dark</span>
-        </button>
     </header>
 
-    <!-- Main Container -->
-    <div class="login-container">
-        <div class="login-card progress-card">
-            
-            <!-- Animated Spinner and Icon -->
-            <div class="spinner-container">
-                <svg class="spinner-svg" viewBox="0 0 100 100">
-                    <circle class="spinner-circle" cx="50" cy="50" r="45" fill="none" stroke-width="5"></circle>
-                </svg>
-                <div class="spinner-shield">🛡️</div>
+    <!-- Main Scanner HUD Container -->
+    <main class="main-content">
+        <div class="scanner-hud-container">
+            <div class="hud-card">
+                
+                <!-- Rotating High-Tech Radar HUD -->
+                <div class="radar-wrapper">
+                    <div class="radar-ring radar-ring-1"></div>
+                    <div class="radar-ring radar-ring-2"></div>
+                    <div class="radar-ring radar-ring-3"></div>
+                    <div class="radar-crosshair-h"></div>
+                    <div class="radar-crosshair-v"></div>
+                    <div class="radar-sweep-beam"></div>
+                    <div class="radar-center-blip">🛡️</div>
+                </div>
+
+                <div class="cyber-badge" style="margin-bottom: 12px;">
+                    <span class="cyber-badge-dot"></span>
+                    <span>LIVE SECURITY TELEMETRY</span>
+                </div>
+
+                <h1 style="font-family: var(--font-display); font-size: 28px; font-weight: 800; margin-bottom: 6px;">
+                    Auditing Attack Surface
+                </h1>
+                
+                <p style="font-family: var(--font-mono); color: var(--primary-cyan); font-weight: 700; word-break: break-all; margin-bottom: 20px;">
+                    {{ url }}
+                </p>
+
+                <!-- Status Headline & Percentage -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span id="statusText" style="font-size: 14px; font-weight: 700; color: var(--text-main);">
+                        Establishing security handshake...
+                    </span>
+                    <span id="progressPct" style="font-family: var(--font-mono); font-size: 14px; font-weight: 800; color: var(--primary-cyan);">
+                        10%
+                    </span>
+                </div>
+
+                <!-- Smooth Glowing Progress Bar -->
+                <div class="cyber-progress-track">
+                    <div class="cyber-progress-fill" id="progressBar"></div>
+                </div>
+
+                <!-- Live Command-Line Diagnostic Terminal -->
+                <div class="cyber-terminal" id="terminalOutput">
+                    <div class="cyber-terminal-header">
+                        <span class="cyber-terminal-dot"></span>
+                        <span>VulnEye Diagnostic Log Stream</span>
+                    </div>
+                    <div class="terminal-line" id="term-line-1">&gt; [INIT] Sentinel daemon engaged.</div>
+                </div>
+
+                <!-- Step-by-Step Security Checkpoints -->
+                <div style="margin-top: 24px; text-align: left;">
+                    <div class="step-item active" id="step-starting">
+                        <span>📡 Scanner Handshake & Normalization</span>
+                        <span class="step-badge" id="badge-starting">ACTIVE</span>
+                    </div>
+                    <div class="step-item" id="step-reachable">
+                        <span>🌐 Host Availability & DNS Resolution</span>
+                        <span class="step-badge" id="badge-reachable">PENDING</span>
+                    </div>
+                    <div class="step-item" id="step-ssl">
+                        <span>🔑 TLS Certificate & Cipher Integrity</span>
+                        <span class="step-badge" id="badge-ssl">PENDING</span>
+                    </div>
+                    <div class="step-item" id="step-headers">
+                        <span>⚡ OWASP Defense Headers Audit</span>
+                        <span class="step-badge" id="badge-headers">PENDING</span>
+                    </div>
+                    <div class="step-item" id="step-ports">
+                        <span>🔌 Critical Port Surface Enumeration</span>
+                        <span class="step-badge" id="badge-ports">PENDING</span>
+                    </div>
+                    <div class="step-item" id="step-dirs">
+                        <span>📁 Administrative Directory Probing</span>
+                        <span class="step-badge" id="badge-dirs">PENDING</span>
+                    </div>
+                    <div class="step-item" id="step-forms">
+                        <span>📝 Form & Input Payload Inspection</span>
+                        <span class="step-badge" id="badge-forms">PENDING</span>
+                    </div>
+                </div>
+
             </div>
-            
-            <h1 style="font-size: 28px; margin-bottom: 6px;">Auditing Domain</h1>
-            <p style="color: var(--accent-blue); font-weight: 700; word-break: break-all; margin: 0 0 16px 0;">{{ url }}</p>
-
-            <div id="statusText" style="font-size: 15px; font-weight: 600; color: var(--text-main);">Starting scan...</div>
-
-            <!-- Progress Bar -->
-            <div class="progress-bar-bg">
-                <div class="progress-bar-fill" id="progressBar"></div>
-            </div>
-
-            <!-- Detailed Checklists -->
-            <div class="status-steps">
-                <div class="step-item active" id="step-starting">
-                    <span class="step-icon" id="icon-starting">📡</span>
-                    Scanner Handshake
-                </div>
-                <div class="step-item waiting" id="step-reachable">
-                    <span class="step-icon" id="icon-reachable">🌐</span>
-                    Host Availability Check
-                </div>
-                <div class="step-item waiting" id="step-ssl">
-                    <span class="step-icon" id="icon-ssl">🔑</span>
-                    TLS & Certificate Audit
-                </div>
-                <div class="step-item waiting" id="step-headers">
-                    <span class="step-icon" id="icon-headers">⚡</span>
-                    HTTP Headers Scan
-                </div>
-                <div class="step-item waiting" id="step-ports">
-                    <span class="step-icon" id="icon-ports">🔌</span>
-                    Exposed Ports Mapping
-                </div>
-                <div class="step-item waiting" id="step-dirs">
-                    <span class="step-icon" id="icon-dirs">📁</span>
-                    Admin Directories Probe
-                </div>
-                <div class="step-item waiting" id="step-forms">
-                    <span class="step-icon" id="icon-forms">📝</span>
-                    Form Auditor
-                </div>
-            </div>
-
         </div>
-    </div>
+    </main>
+
+    <!-- Cyber Effects Script -->
+    <script src="{{ url_for('static', filename='cyber-effects.js') }}"></script>
 
     <script>
         const targetUrl = "{{ url }}";
         const progressBar = document.getElementById("progressBar");
+        const progressPct = document.getElementById("progressPct");
         const statusText = document.getElementById("statusText");
+        const terminalOutput = document.getElementById("terminalOutput");
 
-        // Map status names to HTML elements
         const stepsMap = {
-            'starting': { el: 'step-starting', icon: 'icon-starting', pct: 10 },
-            'reachable': { el: 'step-reachable', icon: 'icon-reachable', pct: 25 },
-            'ssl': { el: 'step-ssl', icon: 'icon-ssl', pct: 40 },
-            'headers': { el: 'step-headers', icon: 'icon-headers', pct: 55 },
-            'ports': { el: 'step-ports', icon: 'icon-ports', pct: 70 },
-            'dirs': { el: 'step-dirs', icon: 'icon-dirs', pct: 85 },
-            'forms': { el: 'step-forms', icon: 'icon-forms', pct: 95 }
+            'starting': { el: 'step-starting', badge: 'badge-starting', pct: 10, term: '[HANDSHAKE] Target URL normalized and initialized.' },
+            'reachable': { el: 'step-reachable', badge: 'badge-reachable', pct: 25, term: '[REACHABILITY] Server pinged successfully.' },
+            'ssl': { el: 'step-ssl', badge: 'badge-ssl', pct: 40, term: '[TLS] Cipher suite & certificate chain checked.' },
+            'headers': { el: 'step-headers', badge: 'badge-headers', pct: 55, term: '[HEADERS] Auditing HSTS, CSP, X-Frame-Options...' },
+            'ports': { el: 'step-ports', badge: 'badge-ports', pct: 70, term: '[PORTS] Scanning service & database ports...' },
+            'dirs': { el: 'step-dirs', badge: 'badge-dirs', pct: 85, term: '[DIRS] Probing admin and backup routes...' },
+            'forms': { el: 'step-forms', badge: 'badge-forms', pct: 95, term: '[FORMS] Detecting public submission forms...' }
         };
+
+        function appendTerminalLine(text, isActive = false) {
+            const line = document.createElement("div");
+            line.className = `terminal-line ${isActive ? 'active' : ''}`;
+            const timeStr = new Date().toLocaleTimeString();
+            line.innerHTML = `&gt; <span style="color:var(--text-dim)">[${timeStr}]</span> ${text}`;
+            terminalOutput.appendChild(line);
+            terminalOutput.scrollTop = terminalOutput.scrollHeight;
+        }
 
         // Initialize Server-Sent Events stream
         const source = new EventSource(`/scan/stream?url=${encodeURIComponent(targetUrl)}`);
-
         let currentActiveKey = 'starting';
 
         source.onmessage = function(event) {
@@ -276,99 +212,55 @@
             
             if (data.status === 'done') {
                 progressBar.style.width = "100%";
-                statusText.innerText = "Scan Completed! Redirecting...";
+                progressPct.innerText = "100%";
+                statusText.innerText = "Audit Complete! Compiling report...";
+                appendTerminalLine("[SUCCESS] Audit compilation finalized. Redirecting...", true);
+                if (window.VulnEyeAudio) window.VulnEyeAudio.playScanPing();
                 source.close();
                 setTimeout(() => {
                     window.location.href = data.redirect;
-                }, 500);
+                }, 600);
                 return;
             }
 
-            // Update UI status text
             statusText.innerText = data.message;
-
             const stepInfo = stepsMap[data.status];
+
             if (stepInfo) {
                 // Complete previous step
-                const currentActiveItem = document.getElementById(stepsMap[currentActiveKey].el);
-                const currentActiveIcon = document.getElementById(stepsMap[currentActiveKey].icon);
-                if (currentActiveItem) {
-                    currentActiveItem.classList.remove('active');
-                    currentActiveItem.classList.add('completed');
+                const prevItem = document.getElementById(stepsMap[currentActiveKey].el);
+                const prevBadge = document.getElementById(stepsMap[currentActiveKey].badge);
+                if (prevItem) {
+                    prevItem.classList.remove('active');
+                    prevItem.classList.add('completed');
                 }
-                if (currentActiveIcon) {
-                    currentActiveIcon.innerText = "✓";
+                if (prevBadge) {
+                    prevBadge.innerText = "DONE ✓";
                 }
 
                 // Activate new step
                 const newItem = document.getElementById(stepInfo.el);
+                const newBadge = document.getElementById(stepInfo.badge);
                 if (newItem) {
-                    newItem.classList.remove('waiting');
                     newItem.classList.add('active');
                 }
-                
+                if (newBadge) {
+                    newBadge.innerText = "ACTIVE";
+                }
+
                 currentActiveKey = data.status;
                 progressBar.style.width = `${stepInfo.pct}%`;
+                progressPct.innerText = `${stepInfo.pct}%`;
+                appendTerminalLine(stepInfo.term, true);
+
+                if (window.VulnEyeAudio) window.VulnEyeAudio.playBeep(800 + stepInfo.pct * 4, 0.05);
             }
         };
 
         source.onerror = function(event) {
             source.close();
-            
-            // Fetch the stream URL normally to retrieve the exact HTTP error status/message
-            fetch(`/scan/stream?url=${encodeURIComponent(targetUrl)}`)
-                .then(response => {
-                    if (response.status === 401) {
-                        statusText.innerHTML = "<span class='bad' style='font-weight:700;'>Error: Unauthorized. Please login again.</span>";
-                    } else if (!response.ok) {
-                        return response.text().then(text => {
-                            const match = text.match(/<title>(.*?)<\/title>/i);
-                            const errMsg = match ? match[1] : text.substring(0, 150);
-                            statusText.innerHTML = `<span class='bad' style='font-weight:700;'>Error (${response.status}): ${errMsg}</span>`;
-                        });
-                    } else {
-                        statusText.innerHTML = "<span class='bad' style='font-weight:700;'>Scan aborted: Connection lost.</span>";
-                    }
-                })
-                .catch(err => {
-                    statusText.innerHTML = `<span class='bad' style='font-weight:700;'>Scan aborted: Network error (${err.message}).</span>`;
-                });
-
-            const currentActiveItem = document.getElementById(stepsMap[currentActiveKey].el);
-            if (currentActiveItem) {
-                currentActiveItem.classList.remove('active');
-                currentActiveItem.classList.add('waiting');
-            }
-        };
-
-        // Dark Mode Logic
-        function toggleDark() {
-            document.body.classList.toggle("dark");
-            const isDark = document.body.classList.contains("dark");
-            localStorage.setItem("theme", isDark ? "dark" : "light");
-            updateThemeButton(isDark);
-        }
-
-        function updateThemeButton(isDark) {
-            const icon = document.getElementById("themeIcon");
-            const text = document.getElementById("themeText");
-            if (isDark) {
-                icon.textContent = "☀️";
-                text.textContent = "Light";
-            } else {
-                icon.textContent = "🌙";
-                text.textContent = "Dark";
-            }
-        }
-
-        window.onload = function () {
-            const savedTheme = localStorage.getItem("theme");
-            if (savedTheme === "dark") {
-                document.body.classList.add("dark");
-                updateThemeButton(true);
-            } else {
-                updateThemeButton(false);
-            }
+            statusText.innerHTML = "<span class='bad'>Scan interrupted: Host unreachable or connection lost.</span>";
+            appendTerminalLine("[ERROR] Stream connection terminated.", true);
         };
     </script>
 </body>
