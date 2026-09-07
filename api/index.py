@@ -179,8 +179,6 @@ def logout():
 # ================= PUBLIC LANDING & EXECUTIVE SOC DASHBOARD =================
 @app.route("/")
 def home():
-    if is_logged_in():
-        return redirect(url_for("dashboard"))
     return render_template("landing.html")
 
 @app.route("/dashboard")
@@ -915,6 +913,7 @@ def tool_cvss_calculator():
     return render_template("tools/cvss_calculator.html")
 
 @app.route("/tools/ssl-checker", methods=["GET", "POST"])
+@app.route("/tools/ssl", methods=["GET", "POST"])
 def tool_ssl_checker():
     result = None
     target = None
@@ -926,6 +925,7 @@ def tool_ssl_checker():
     return render_template("tools/ssl_checker.html", result=result, target=target)
 
 @app.route("/tools/headers-checker", methods=["GET", "POST"])
+@app.route("/tools/headers", methods=["GET", "POST"])
 def tool_headers_checker():
     result = None
     target = None
@@ -937,6 +937,7 @@ def tool_headers_checker():
     return render_template("tools/headers_checker.html", result=result, target=target)
 
 @app.route("/tools/subdomain-finder", methods=["GET", "POST"])
+@app.route("/tools/subdomains", methods=["GET", "POST"])
 def tool_subdomain_finder():
     result = None
     target = None
@@ -947,6 +948,7 @@ def tool_subdomain_finder():
     return render_template("tools/subdomains.html", result=result, target=target)
 
 @app.route("/tools/password-analyzer", methods=["GET", "POST"])
+@app.route("/tools/password", methods=["GET", "POST"])
 def tool_password_analyzer():
     result = None
     password = None
