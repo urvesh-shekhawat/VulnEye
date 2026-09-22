@@ -60,19 +60,76 @@ engine = create_engine(DATABASE_URL, **engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+from urllib.parse import urlparse, parse_qs
+
 _last_init_error = None
 
 def get_last_init_error():
     return _last_init_error
 
+def get_safe_db_metadata():
+    """
+    Extracts database connection metadata safely without revealing secrets or passwords.
+    """
+    raw_env = os.environ.get("DATABASE_URL")
+    if not raw_env:
+        return {
+            "configured": False,
+            "engine": "sqlite",
+            "host": None,
+            "port": None,
+            "user_format": None,
+            "database": None,
+            "sslmode": None
+        }
+    try:
+        parsed = urlparse(DATABASE_URL)
+        qs = parse_qs(parsed.query)
+        username = parsed.username or ""
+        user_format = "unknown"
+        if "." in username:
+            parts = username.split(".", 1)
+            user_format = f"{parts[0]}.{parts[1][:4]}***"
+        elif username:
+            user_format = f"{username[:3]}***"
+
+        return {
+            "configured": True,
+            "scheme": parsed.scheme,
+            "host": parsed.hostname,
+            "port": parsed.port,
+            "user_format": user_format,
+            "database": parsed.path.lstrip("/") if parsed.path else None,
+            "sslmode": qs.get("sslmode", [None])[0]
+        }
+    except Exception as e:
+        return {"configured": True, "parse_error": type(e).__name__}
+
+def sanitize_db_error(exc):
+    """
+    Extracts and sanitizes the database exception message, ensuring no passwords or raw URLs are exposed.
+    """
+    if exc is None:
+        return None
+    driver_error = getattr(exc, "orig", exc)
+    raw_msg = str(driver_error)
+    lines = [line.strip() for line in raw_msg.splitlines() if line.strip()]
+    first_line = lines[0] if lines else str(type(exc).__name__)
+    return {
+        "type": type(exc).__name__,
+        "driver_type": type(driver_error).__name__,
+        "message": first_line
+    }
+
 def get_db_status():
     """
-    Safely probes database connectivity and returns engine type without leaking credentials.
+    Safely probes database connectivity and returns engine type and diagnostic metadata without leaking credentials.
     """
     is_postgres = DATABASE_URL.startswith("postgres")
     engine_type = "postgresql" if is_postgres else "sqlite"
     configured = bool(os.environ.get("DATABASE_URL"))
     is_ephemeral = bool(os.environ.get("VERCEL") and DATABASE_URL.startswith("sqlite"))
+    metadata = get_safe_db_metadata()
 
     try:
         with engine.connect() as conn:
@@ -81,15 +138,26 @@ def get_db_status():
             "status": "connected",
             "engine": engine_type,
             "configured": configured,
-            "ephemeral": is_ephemeral
+            "ephemeral": is_ephemeral,
+            "metadata": metadata
         }
-    except Exception:
+    except Exception as e:
+        error_info = sanitize_db_error(e)
+        logger.warning(
+            "Database connectivity probe failed: [%s] %s (Host: %s:%s, Database: %s)",
+            error_info.get("type"),
+            error_info.get("message"),
+            metadata.get("host"),
+            metadata.get("port"),
+            metadata.get("database")
+        )
         return {
             "status": "disconnected",
-            "error": "Database connectivity probe failed",
+            "error": error_info,
             "engine": engine_type,
             "configured": configured,
-            "ephemeral": is_ephemeral
+            "ephemeral": is_ephemeral,
+            "metadata": metadata
         }
 
 # 3. Model Definitions

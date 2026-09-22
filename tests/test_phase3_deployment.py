@@ -133,7 +133,7 @@ class Phase3DeploymentTests(unittest.TestCase):
         with patch("database.engine.connect", side_effect=Exception("Database unreachable")):
             status = get_db_status()
             self.assertEqual(status["status"], "disconnected")
-            self.assertEqual(status["error"], "Database connectivity probe failed")
+            self.assertEqual(status["error"]["message"], "Database unreachable")
 
     # ================= 4. PRODUCTION HEALTH CHECK ENDPOINTS =================
     def test_health_endpoints_response_format(self):

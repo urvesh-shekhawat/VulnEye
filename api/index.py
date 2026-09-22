@@ -1316,7 +1316,7 @@ def api_health():
     db_info = get_db_status()
     is_prod = bool(os.environ.get("VERCEL") or os.environ.get("FLASK_ENV") == "production" or os.environ.get("ENV") == "production")
 
-    return jsonify({
+    response_data = {
         "status": "online",
         "service": "VulnEye CyberSentinel API v1",
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -1325,7 +1325,15 @@ def api_health():
             "engine": db_info.get("engine", "unknown")
         },
         "environment": "production" if is_prod else "development"
-    })
+    }
+
+    if db_info.get("status") == "disconnected":
+        response_data["database"]["diagnostic"] = {
+            "error": db_info.get("error"),
+            "metadata": db_info.get("metadata")
+        }
+
+    return jsonify(response_data)
 
 @app.route("/api/v1/scan", methods=["POST", "GET"])
 @app.route("/v1/scan", methods=["POST", "GET"])
