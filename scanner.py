@@ -23,31 +23,101 @@ def extract_domain(url_or_host):
 
 def is_safe_target(host):
     """
-    Prevent Server-Side Request Forgery (SSRF) against private networks and loopback interfaces.
+    Prevent Server-Side Request Forgery (SSRF) against private networks, loopback,
+    link-local, cloud metadata, and multicast/reserved interfaces across IPv4 and IPv6.
     """
     if not host:
         return False, "Target host cannot be empty."
-    
-    clean_host = host.split(":")[0]
+
+    # Strip scheme if accidentally included
+    if "://" in host:
+        parsed = urlparse(host)
+        host = parsed.netloc or parsed.path
+
+    # Clean port and IPv6 brackets (e.g., [::1]:80 or [fe80::1])
+    clean_host = str(host).strip()
+    if clean_host.startswith("[") and "]" in clean_host:
+        clean_host = clean_host[1:clean_host.index("]")]
+    else:
+        clean_host = clean_host.split(":")[0].strip("/")
+
+    if not clean_host:
+        return False, "Target host cannot be empty."
+
+    # Explicit hostname blocklist for cloud metadata and internal domains
+    blocked_hostnames = {
+        "localhost", "metadata.google.internal", "metadata", "instance-data",
+        "169.254.169.254", "169.254.170.2", "fd00:ec2::254"
+    }
+    clean_lower = clean_host.lower()
+    if (
+        clean_lower in blocked_hostnames
+        or clean_lower.endswith(".internal")
+        or clean_lower.endswith(".local")
+        or clean_lower.endswith(".localhost")
+    ):
+        return False, f"Target host '{clean_host}' is blocked for security reasons."
 
     try:
-        ip_str = socket.gethostbyname(clean_host)
-        ip = ipaddress.ip_address(ip_str)
+        # Check if direct IP literal first
+        try:
+            direct_ip = ipaddress.ip_address(clean_host)
+            ip_objects = [direct_ip]
+        except ValueError:
+            # Resolve all addresses (IPv4 and IPv6)
+            addr_info = socket.getaddrinfo(clean_host, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+            if not addr_info:
+                return False, f"Could not resolve host: {clean_host}"
+            ip_objects = []
+            for family, _, _, _, sockaddr in addr_info:
+                ip_str = sockaddr[0]
+                ip_objects.append(ipaddress.ip_address(ip_str))
 
-        if ip.is_loopback:
-            return False, f"Scanning loopback address ({ip_str}) is prohibited."
-        if ip.is_private:
-            return False, f"Scanning internal/private network ({ip_str}) is prohibited."
-        if ip.is_link_local:
-            return False, f"Scanning link-local address ({ip_str}) is prohibited."
-        if ip.is_multicast or ip.is_reserved or ip.is_unspecified:
-            return False, f"Scanning reserved or multicast address ({ip_str}) is prohibited."
-        
-        return True, ip_str
+        for ip in ip_objects:
+            # Check for IPv4-mapped IPv6 addresses (e.g. ::ffff:127.0.0.1)
+            if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
+                ip = ip.ipv4_mapped
+
+            ip_str = str(ip)
+            if ip.is_loopback:
+                return False, f"Loopback address ({ip_str}) is prohibited."
+            if ip.is_private:
+                return False, f"Internal/private network address ({ip_str}) is prohibited."
+            if ip.is_link_local:
+                return False, f"Link-local address ({ip_str}) is prohibited."
+            if ip.is_multicast or ip.is_reserved or ip.is_unspecified:
+                return False, f"Reserved or multicast address ({ip_str}) is prohibited."
+            
+            # Explicit check for 169.254.169.254 (Cloud metadata) and 0.0.0.0/8
+            if isinstance(ip, ipaddress.IPv4Address):
+                if ip_str == "169.254.169.254" or ip_str.startswith("169.254."):
+                    return False, f"Cloud metadata / link-local address ({ip_str}) is prohibited."
+                if ip_str.startswith("0."):
+                    return False, f"Current network address ({ip_str}) is prohibited."
+
+        return True, str(ip_objects[0])
     except socket.gaierror:
         return False, f"Could not resolve host: {clean_host}"
     except Exception as e:
         return False, str(e)
+
+def validate_outbound_url(url):
+    """
+    Validates a URL before making an outbound request (for Webhooks, Scans, etc.).
+    Requires http:// or https:// and a safe non-internal host.
+    """
+    if not url or not isinstance(url, str):
+        return False, "URL cannot be empty."
+    
+    url = url.strip()
+    parsed = urlparse(url)
+    if parsed.scheme.lower() not in ("http", "https"):
+        return False, f"Invalid URL scheme '{parsed.scheme}'. Only HTTP and HTTPS are permitted."
+    
+    if not parsed.netloc:
+        return False, "URL must contain a valid hostname."
+    
+    return is_safe_target(parsed.netloc)
 
 # ================= 2. NETWORK RESOLUTION & TELEMETRY =================
 def resolve_host_info(host):
@@ -73,14 +143,88 @@ def resolve_host_info(host):
 
     return info
 
-def check_status(url):
+def check_status(url, max_redirects=5):
+    """
+    Checks if a target URL is reachable, safely following redirects hop-by-hop
+    and validating that each redirect destination is not an internal, loopback, or cloud metadata IP.
+    """
+    current_url = normalize_url(url)
+    headers = {"User-Agent": "VulnEye-Security-Scanner/2.0 (Security Sentinel)"}
+    
+    # First validate initial target
+    is_safe, msg = validate_outbound_url(current_url)
+    if not is_safe:
+        return {
+            "reachable": False,
+            "status_code": None,
+            "error": f"Target blocked: {msg}"
+        }
+
     try:
-        headers = {"User-Agent": "VulnEye-Security-Scanner/2.0 (Security Sentinel)"}
-        response = requests.get(url, headers=headers, timeout=6, allow_redirects=True)
+        session = requests.Session()
+        visited = set()
+        hops = 0
+
+        while hops <= max_redirects:
+            parsed = urlparse(current_url)
+            host = parsed.netloc
+            safe, err = is_safe_target(host)
+            if not safe:
+                return {
+                    "reachable": False,
+                    "status_code": None,
+                    "error": f"SSRF Protection: Destination '{host}' ({err}) is prohibited."
+                }
+
+            visited.add(current_url)
+            response = session.get(current_url, headers=headers, timeout=6, allow_redirects=False)
+
+            # Check if this is a redirect
+            if response.status_code in (301, 302, 303, 307, 308) and "Location" in response.headers:
+                redirect_target = response.headers["Location"].strip()
+                next_url = urljoin(current_url, redirect_target)
+                
+                # Check scheme
+                next_parsed = urlparse(next_url)
+                if next_parsed.scheme.lower() not in ("http", "https"):
+                    return {
+                        "reachable": False,
+                        "status_code": None,
+                        "error": f"Redirect to unsafe scheme '{next_parsed.scheme}' blocked."
+                    }
+
+                # Validate next hop host
+                safe, err = is_safe_target(next_parsed.netloc)
+                if not safe:
+                    return {
+                        "reachable": False,
+                        "status_code": None,
+                        "error": f"SSRF Protection: Redirect to internal destination '{next_parsed.netloc}' ({err}) blocked."
+                    }
+
+                if next_url in visited:
+                    # Redirect loop detected, return last response
+                    return {
+                        "reachable": True,
+                        "status_code": response.status_code,
+                        "final_url": current_url,
+                        "response": response
+                    }
+
+                current_url = next_url
+                hops += 1
+            else:
+                return {
+                    "reachable": True,
+                    "status_code": response.status_code,
+                    "final_url": current_url,
+                    "response": response
+                }
+
         return {
             "reachable": True,
             "status_code": response.status_code,
-            "final_url": response.url,
+            "final_url": current_url,
             "response": response
         }
     except Exception as e:

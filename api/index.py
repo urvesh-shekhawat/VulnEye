@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import time
+import secrets
 import datetime
 from io import BytesIO
 from urllib.parse import urlparse
@@ -14,6 +15,7 @@ from scanner import (
     normalize_url,
     extract_domain,
     is_safe_target,
+    validate_outbound_url,
     resolve_host_info,
     check_status,
     check_https,
@@ -53,7 +55,9 @@ from database import (
     get_transaction_by_id,
     get_webhook_config,
     save_webhook_config,
-    send_webhook_alert
+    send_webhook_alert,
+    get_db_status,
+    normalize_database_url
 )
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib import colors
@@ -77,8 +81,62 @@ if not os.environ.get("VERCEL"):
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
-# Use SECRET_KEY from environment with a fallback
-app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey123_fallback")
+
+# Production security check for SECRET_KEY
+is_prod = bool(os.environ.get("VERCEL") or os.environ.get("FLASK_ENV") == "production" or os.environ.get("ENV") == "production")
+secret_key_env = os.environ.get("SECRET_KEY")
+if is_prod and not secret_key_env:
+    raise RuntimeError("CRITICAL CONFIGURATION ERROR: 'SECRET_KEY' environment variable must be set in production.")
+
+# In development, generate a cryptographically random secret if not provided
+app.secret_key = secret_key_env or secrets.token_hex(32)
+
+# Secure session cookies configuration
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = bool(os.environ.get("VERCEL") or os.environ.get("FLASK_ENV") == "production")
+
+# CSRF Protection Engine
+def generate_csrf_token():
+    if "_csrf_token" not in session:
+        session["_csrf_token"] = secrets.token_hex(32)
+    return session["_csrf_token"]
+
+@app.context_processor
+def inject_csrf_token():
+    return dict(csrf_token=generate_csrf_token())
+
+@app.before_request
+def csrf_protect():
+    if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+        path = request.path
+
+        # 1. Allow REST API v1 endpoints when authenticated via Bearer token
+        if path.startswith("/api/v1/") or path.startswith("/v1/"):
+            auth_header = request.headers.get("Authorization")
+            if auth_header and verify_api_key(auth_header):
+                return None  # API Bearer token authenticated, CSRF exempt
+
+        # 2. Allow OAuth callback & authorization endpoints
+        if path in ("/authorize", "/login/google"):
+            return None
+
+        # 3. Allow free query tools /tools/* and /export-pdf when called without session
+        session_token = session.get("_csrf_token")
+        request_token = (
+            request.form.get("csrf_token")
+            or request.headers.get("X-CSRFToken")
+            or request.headers.get("X-CSRF-Token")
+            or (request.is_json and (request.get_json(silent=True) or {}).get("csrf_token"))
+        )
+
+        if (path.startswith("/tools/") or path == "/export-pdf") and not session_token and not request_token:
+            return None
+
+        if not session_token or not request_token or not secrets.compare_digest(session_token, request_token):
+            if request.is_json or path.startswith("/api/"):
+                return jsonify({"error": "CSRF token missing or invalid", "success": False}), 403
+            return render_template("login.html", error="Security validation failed (Invalid or missing CSRF token). Please try again."), 403
 
 # WSGI Middleware to fix Vercel serverless path prefixes (/api/index.py, /api)
 class PrefixMiddleware(object):
@@ -113,8 +171,11 @@ google = oauth.register(
     client_kwargs={'scope': 'openid email profile'}
 )
 
-# Initialize DB
-init_db()
+# Initialize DB safely on startup (never crashes Flask import if DB is unreachable)
+try:
+    init_db()
+except Exception as exc:
+    app.logger.warning("Startup database initialization skipped: %s", type(exc).__name__)
 
 def is_logged_in():
     return session.get("logged_in")
@@ -143,12 +204,14 @@ def login():
 @app.route("/login/guest")
 @app.route("/login/demo")
 def login_guest():
+    guest_id = secrets.token_hex(6)
     session['user'] = {
-        'name': 'Cyber Analyst',
-        'email': 'analyst@vulneye.sec',
-        'picture': 'https://api.dicebear.com/7.x/bottts/svg?seed=VulnEyeSecurity'
+        'name': f'Guest Analyst ({guest_id[:4].upper()})',
+        'email': f'guest_{guest_id}@demo.vulneye.local',
+        'picture': f'https://api.dicebear.com/7.x/bottts/svg?seed={guest_id}'
     }
     session['logged_in'] = True
+    generate_csrf_token()
     return redirect(url_for("dashboard"))
 
 @app.route("/login/google")
@@ -222,7 +285,6 @@ def scan_stream():
 
     def generate_stream():
         yield f"data: {json.dumps({'status': 'starting', 'message': 'Normalizing target URL & validating safety parameters...'})}\n\n"
-        time.sleep(0.3)
 
         parsed = urlparse(url_normalized)
         host = parsed.netloc
@@ -328,7 +390,6 @@ def scan_stream():
         results["risk"] = calculate_risk(results)
 
         save_scan(results, user_email=user_email)
-        time.sleep(0.3)
 
         yield f"data: {json.dumps({'status': 'done', 'redirect': redirect_url})}\n\n"
 
@@ -361,7 +422,7 @@ def history():
     scans = get_all_scans(user_email=user_email)
     return render_template("history.html", scans=scans)
 
-@app.route("/scan/delete/<int:scan_id>", methods=["GET", "POST"])
+@app.route("/scan/delete/<int:scan_id>", methods=["POST"])
 def delete_scan_route(scan_id):
     if not is_logged_in():
         return redirect(url_for("login"))
@@ -393,7 +454,7 @@ def add_asset():
 
     return redirect(url_for("monitoring"))
 
-@app.route("/monitoring/delete/<int:asset_id>", methods=["GET", "POST"])
+@app.route("/monitoring/delete/<int:asset_id>", methods=["POST"])
 def delete_asset(asset_id):
     if not is_logged_in():
         return redirect(url_for("login"))
@@ -802,7 +863,7 @@ def create_api_key():
 
     return redirect(url_for("settings"))
 
-@app.route("/settings/api-key/revoke/<int:key_id>", methods=["POST", "GET"])
+@app.route("/settings/api-key/revoke/<int:key_id>", methods=["POST"])
 def revoke_key(key_id):
     if not is_logged_in():
         return redirect(url_for("login"))
@@ -1248,13 +1309,22 @@ def export_pdf():
     return response
 
 # ================= REST API V1 (WITH API KEY SUPPORT) =================
+@app.route("/health")
 @app.route("/api/v1/health")
 @app.route("/v1/health")
 def api_health():
+    db_info = get_db_status()
+    is_prod = bool(os.environ.get("VERCEL") or os.environ.get("FLASK_ENV") == "production" or os.environ.get("ENV") == "production")
+
     return jsonify({
         "status": "online",
         "service": "VulnEye CyberSentinel API v1",
-        "timestamp": datetime.datetime.utcnow().isoformat()
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "database": {
+            "status": db_info.get("status", "unknown"),
+            "engine": db_info.get("engine", "unknown")
+        },
+        "environment": "production" if is_prod else "development"
     })
 
 @app.route("/api/v1/scan", methods=["POST", "GET"])

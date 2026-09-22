@@ -153,6 +153,7 @@
 
                 <!-- Export PDF Button -->
                 <form action="/export-pdf" method="POST" style="margin: 0;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <input type="hidden" name="url" value="{{ results.url }}">
                     <button type="submit" class="btn-cyber-secondary" style="padding: 10px 14px;">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -203,7 +204,7 @@
                         <span>MARKDOWN (GITHUB README)</span>
                         <a href="javascript:void(0)" onclick="copyBadgeSnippet('mdBadgeCode', this)" style="color: var(--primary-cyan); text-decoration: none;">Copy Markdown</a>
                     </div>
-                    <textarea id="mdBadgeCode" class="cyber-input" style="width: 100%; height: 50px; font-family: var(--font-mono); font-size: 11px; resize: none;" readonly>[![VulnEye Security Grade](https://vulneye.sec/api/v1/badge?url={{ results.url|urlencode }})](https://vulneye.sec/)</textarea>
+                    <textarea id="mdBadgeCode" class="cyber-input" style="width: 100%; height: 50px; font-family: var(--font-mono); font-size: 11px; resize: none;" readonly>[![VulnEye Security Grade]({{ request.host_url.rstrip('/') }}/api/v1/badge?url={{ results.url|urlencode }})]({{ request.host_url.rstrip('/') }}/)</textarea>
                 </div>
 
                 <!-- HTML Embed Code -->
@@ -212,7 +213,7 @@
                         <span>HTML EMBED SNIPPET</span>
                         <a href="javascript:void(0)" onclick="copyBadgeSnippet('htmlBadgeCode', this)" style="color: var(--primary-cyan); text-decoration: none;">Copy HTML</a>
                     </div>
-                    <textarea id="htmlBadgeCode" class="cyber-input" style="width: 100%; height: 50px; font-family: var(--font-mono); font-size: 11px; resize: none;" readonly><a href="https://vulneye.sec/"><img src="https://vulneye.sec/api/v1/badge?url={{ results.url|urlencode }}" alt="VulnEye Security Grade" /></a></textarea>
+                    <textarea id="htmlBadgeCode" class="cyber-input" style="width: 100%; height: 50px; font-family: var(--font-mono); font-size: 11px; resize: none;" readonly><a href="{{ request.host_url.rstrip('/') }}/"><img src="{{ request.host_url.rstrip('/') }}/api/v1/badge?url={{ results.url|urlencode }}" alt="VulnEye Security Grade" /></a></textarea>
                 </div>
 
                 <div style="display: flex; justify-content: flex-end;">
@@ -650,6 +651,13 @@
         window.openBadgeModal = function() {
             const modal = document.getElementById('badgeModal');
             if (modal) {
+                const origin = window.location.origin;
+                const targetUrl = {{ results.url|tojson }};
+                const badgeUrl = `${origin}/api/v1/badge?url=${encodeURIComponent(targetUrl)}`;
+                const mdBox = document.getElementById('mdBadgeCode');
+                const htmlBox = document.getElementById('htmlBadgeCode');
+                if (mdBox) mdBox.value = `[![VulnEye Security Grade](${badgeUrl})](${origin}/)`;
+                if (htmlBox) htmlBox.value = `<a href="${origin}/"><img src="${badgeUrl}" alt="VulnEye Security Grade" /></a>`;
                 modal.style.display = 'flex';
                 if (window.VulnEyeAudio) window.VulnEyeAudio.playModal(true);
             }

@@ -320,12 +320,13 @@ To enable Google Sign-In:
 
 VulnEye uses **SQLAlchemy** to support both SQLite and PostgreSQL out-of-the-box:
 
-* **Local Development:** Defaults to `sqlite:///scans.db`.
-* **Serverless (Vercel):** Automatically uses SQLite with self-healing fallback to `/tmp/scans.db`.
-* **PostgreSQL (Production / Render / Supabase / Neon):** Set the `DATABASE_URL` environment variable:
+* **Local Development:** Defaults to local file database `DATABASE_URL="sqlite:///scans.db"`.
+* **Production Deployment (Recommended):** Set `DATABASE_URL` to a persistent PostgreSQL database instance (e.g. **Neon**, **Supabase**, **Render PostgreSQL**, **AWS RDS**):
   ```env
-  DATABASE_URL="postgresql://user:password@host:5432/vulneye_db"
+  DATABASE_URL="postgresql://username:password@ep-cool-server.region.aws.neon.tech/vulneye_db?sslmode=require"
   ```
+  > [!IMPORTANT]
+  > On serverless platforms like Vercel, serverless function environments have ephemeral filesystems. If `DATABASE_URL` is omitted, the application will temporarily use `/tmp/scans.db`, which will reset when the serverless container recycles. For persistent scan history, monitored assets, and API keys, configuring a PostgreSQL `DATABASE_URL` is required. Both `postgres://` and `postgresql://` URI schemes are automatically handled.
 
 ---
 
@@ -347,9 +348,14 @@ GET /api/v1/health
 ```
 ```json
 {
-  "service": "VulnEye CyberSentinel API v1",
   "status": "online",
-  "timestamp": "2026-09-09T08:30:00.000000"
+  "service": "VulnEye CyberSentinel API v1",
+  "timestamp": "2026-09-22T11:30:00.000000+00:00",
+  "database": {
+    "status": "connected",
+    "engine": "postgresql"
+  },
+  "environment": "production"
 }
 ```
 
@@ -422,15 +428,15 @@ Embed real-time VulnEye security badges directly into your repository README:
 
 ### Deploy to Vercel (Serverless)
 
-VulnEye is configured for seamless Vercel deployment with zero configuration:
+VulnEye is configured for seamless Vercel deployment:
 
 1. Push your code to a GitHub repository.
 2. In the **[Vercel Dashboard](https://vercel.com)**, click **Add New Project** and import `VulnEye`.
 3. Add Environment Variables under **Project Settings**:
-   - `SECRET_KEY`: A cryptographically secure random string.
-   - `GOOGLE_CLIENT_ID`: Your Google OAuth Client ID.
-   - `GOOGLE_CLIENT_SECRET`: Your Google OAuth Client Secret.
-   - `DATABASE_URL` *(Optional)*: PostgreSQL connection string if not using SQLite `/tmp`.
+   - `SECRET_KEY`: A cryptographically secure random string (generate with `python -c "import secrets; print(secrets.token_hex(32))"`).
+   - `DATABASE_URL`: PostgreSQL connection string from Neon, Supabase, Render, or AWS RDS.
+   - `GOOGLE_CLIENT_ID`: (Optional) Your Google OAuth Client ID.
+   - `GOOGLE_CLIENT_SECRET`: (Optional) Your Google OAuth Client Secret.
 4. Click **Deploy**.
 
 ### Deploy to Render / Docker

@@ -124,6 +124,7 @@
 
             <!-- Create API Key Form -->
             <form action="/settings/api-key/create" method="POST" style="display: flex; gap: 8px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input 
                     type="text" 
                     name="name" 
@@ -286,9 +287,12 @@
                             </td>
                             <td style="text-align: right;">
                                 {% if key.is_active %}
-                                <a href="/settings/api-key/revoke/{{ key.id }}" onclick="return confirm('Revoke this API Key? It will stop functioning immediately.');" class="btn-cyber-secondary" style="padding: 4px 10px; font-size: 11px; color: var(--color-danger); border-color: rgba(255,42,95,0.3);">
-                                    Revoke
-                                </a>
+                                <form action="/settings/api-key/revoke/{{ key.id }}" method="POST" style="display: inline; margin: 0;" onsubmit="return confirm('Revoke this API Key? It will stop functioning immediately.');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="btn-cyber-secondary" style="padding: 4px 10px; font-size: 11px; color: var(--color-danger); border-color: rgba(255,42,95,0.3); background: transparent; cursor: pointer;">
+                                        Revoke
+                                    </button>
+                                </form>
                                 {% else %}
                                 <span style="font-size: 11px; color: var(--text-muted);">Disabled</span>
                                 {% endif %}
@@ -320,7 +324,7 @@
             try {
                 const res = await fetch('/api/webhook/save', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
                     body: JSON.stringify({ webhook_url: url, channel_type: channel, alert_level: level, is_enabled: true })
                 });
                 const data = await res.json();
@@ -357,7 +361,7 @@
             try {
                 const res = await fetch('/api/webhook/test', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
                     body: JSON.stringify({ webhook_url: url })
                 });
                 const data = await res.json();

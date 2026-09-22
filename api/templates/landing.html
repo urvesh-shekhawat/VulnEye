@@ -1401,6 +1401,7 @@
             <!-- Instant Target Audit Launchpad -->
             <div class="hero-scan-container">
                 <form action="/scan" method="POST" class="hero-scan-form" id="mainScanForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <div class="input-prefix-icon">🎯</div>
                     <input 
                         type="text" 
@@ -1778,7 +1779,7 @@
                     <img id="badgePreviewImg" src="/api/v1/badge?url=https://owasp.org" alt="VulnEye Security Grade" style="height: 28px; filter: drop-shadow(0 0 8px rgba(0,240,255,0.3));">
                 </div>
                 <div class="badge-code-box" id="badgeMarkdownCode">
-                    [![VulnEye Security](http://localhost:5000/api/v1/badge?url=https://owasp.org)](http://localhost:5000/scan)
+                    [![VulnEye Security]({{ request.host_url.rstrip('/') }}/api/v1/badge?url=https://owasp.org)]({{ request.host_url.rstrip('/') }}/scan)
                 </div>
             </div>
         </section>
@@ -2073,6 +2074,14 @@
             el.classList.toggle('open');
             if (window.playSfx) window.playSfx('click');
         }
+
+        // Initialize dynamic badge preview on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const badgeInput = document.getElementById('badgeDomainInput');
+            if (badgeInput) {
+                updateBadgePreview(badgeInput.value);
+            }
+        });
     </script>
 </body>
 </html>

@@ -130,7 +130,7 @@
                     </div>
                     <p style="color: var(--text-dim); font-size: 14px;">Check sentinel daemon uptime and API operational status.</p>
                     
-                    <div class="code-snippet">curl -X GET "http://127.0.0.1:5000/api/v1/health"</div>
+                    <div class="code-snippet">curl -X GET "{{ request.host_url.rstrip('/') }}/api/v1/health"</div>
                 </section>
 
                 <!-- Endpoint 2: Scan -->
@@ -141,7 +141,7 @@
                     </div>
                     <p style="color: var(--text-dim); font-size: 14px;">Execute high-speed multi-threaded vulnerability scan on a target URL.</p>
 
-                    <div class="code-snippet">curl -X POST "http://127.0.0.1:5000/api/v1/scan" \
+                    <div class="code-snippet">curl -X POST "{{ request.host_url.rstrip('/') }}/api/v1/scan" \
      -H "Authorization: Bearer vye_live_your_key" \
      -H "Content-Type: application/json" \
      -d '{"url": "https://scanme.nmap.org"}'</div>
@@ -155,7 +155,7 @@
                     </div>
                     <p style="color: var(--text-dim); font-size: 14px;">Fetch past security audit logs for the authenticated organization.</p>
 
-                    <div class="code-snippet">curl -X GET "http://127.0.0.1:5000/api/v1/history" \
+                    <div class="code-snippet">curl -X GET "{{ request.host_url.rstrip('/') }}/api/v1/history" \
      -H "Authorization: Bearer vye_live_your_key"</div>
                 </section>
 
@@ -166,7 +166,7 @@
                         Add this step to your <code>.github/workflows/security.yml</code>:
                     </p>
 
-                    <div class="code-snippet">{% raw %}name: VulnEye Security Audit
+                    <div class="code-snippet">name: VulnEye Security Audit
 on: [push]
 jobs:
   security-scan:
@@ -174,10 +174,10 @@ jobs:
     steps:
       - name: Trigger VulnEye Attack Surface Audit
         run: |
-          curl -X POST "https://vulneye.yourdomain.com/api/v1/scan" \
-            -H "Authorization: Bearer ${{ secrets.VULNEYE_API_KEY }}" \
+          curl -X POST "{{ request.host_url.rstrip('/') }}/api/v1/scan" \
+            -H "Authorization: Bearer {% raw %}${{ secrets.VULNEYE_API_KEY }}{% endraw %}" \
             -H "Content-Type: application/json" \
-            -d '{"url": "https://staging.mycompany.com"}'{% endraw %}</div>
+            -d '{"url": "https://staging.mycompany.com"}'</div>
                 </section>
 
             </div>

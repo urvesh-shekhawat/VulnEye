@@ -1,37 +1,96 @@
 import os
 import json
+import logging
 import secrets
 import hashlib
 from datetime import datetime
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Boolean, text
 from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.pool import NullPool
+
+logger = logging.getLogger("vulneye.database")
 
 # 1. Determine Database URL
-raw_db_url = os.environ.get("DATABASE_URL")
-if raw_db_url:
-    if raw_db_url.startswith("postgres://"):
-        DATABASE_URL = raw_db_url.replace("postgres://", "postgresql://", 1)
-    else:
-        DATABASE_URL = raw_db_url
-else:
+def normalize_database_url(url=None):
+    """
+    Normalizes a database URL for SQLAlchemy compatibility:
+    - Normalizes 'postgres://' to 'postgresql://' (required for SQLAlchemy 1.4/2.0+)
+    - Automatically appends 'sslmode=require' for PostgreSQL URLs when missing
+    - Preserves explicitly provided sslmode settings (e.g. sslmode=disable, sslmode=prefer)
+    - Sets appropriate fallback for local SQLite or serverless /tmp
+    """
+    raw_url = url or os.environ.get("DATABASE_URL")
+    if raw_url:
+        cleaned = raw_url.strip()
+        if cleaned.startswith("postgres://"):
+            cleaned = cleaned.replace("postgres://", "postgresql://", 1)
+        if cleaned.startswith("postgresql://") and "sslmode=" not in cleaned:
+            separator = "&" if "?" in cleaned else "?"
+            cleaned = f"{cleaned}{separator}sslmode=require"
+        return cleaned
+    
     if os.environ.get("VERCEL"):
-        DATABASE_URL = "sqlite:////tmp/scans.db"
-    else:
-        DATABASE_URL = "sqlite:///scans.db"
+        return "sqlite:////tmp/scans.db"
+    return "sqlite:///scans.db"
 
-# 2. Setup SQLAlchemy Engine
-connect_args = {}
+DATABASE_URL = normalize_database_url()
+
+# 2. Setup SQLAlchemy Engine with Serverless-friendly Pooling
+is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+
+engine_kwargs = {
+    "pool_pre_ping": True,
+    "echo": False
+}
+
 if DATABASE_URL.startswith("sqlite"):
-    connect_args = {"check_same_thread": False}
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+elif is_serverless:
+    # Serverless / Vercel with PostgreSQL & Supabase Transaction Pooler (PgBouncer)
+    # Using NullPool avoids connection accumulation across stateless lambda invocations
+    engine_kwargs["poolclass"] = NullPool
+else:
+    # Dedicated long-running servers (e.g. Render / Docker / local VM)
+    engine_kwargs["pool_recycle"] = 300
+    engine_kwargs["pool_size"] = 5
+    engine_kwargs["max_overflow"] = 10
+    engine_kwargs["pool_timeout"] = 30
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args=connect_args,
-    pool_pre_ping=True,
-    echo=False
-)
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+_last_init_error = None
+
+def get_last_init_error():
+    return _last_init_error
+
+def get_db_status():
+    """
+    Safely probes database connectivity and returns engine type without leaking credentials.
+    """
+    is_postgres = DATABASE_URL.startswith("postgres")
+    engine_type = "postgresql" if is_postgres else "sqlite"
+    configured = bool(os.environ.get("DATABASE_URL"))
+    is_ephemeral = bool(os.environ.get("VERCEL") and DATABASE_URL.startswith("sqlite"))
+
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {
+            "status": "connected",
+            "engine": engine_type,
+            "configured": configured,
+            "ephemeral": is_ephemeral
+        }
+    except Exception:
+        return {
+            "status": "disconnected",
+            "error": "Database connectivity probe failed",
+            "engine": engine_type,
+            "configured": configured,
+            "ephemeral": is_ephemeral
+        }
 
 # 3. Model Definitions
 class ScanHistory(Base):
@@ -107,19 +166,33 @@ class UserWebhookConfig(Base):
     updated_at = Column(DateTime, default=datetime.utcnow)
 
 def init_db():
-    Base.metadata.create_all(bind=engine)
-    
-    # Safe migration for existing SQLite database to add user_email column if missing
-    if DATABASE_URL.startswith("sqlite"):
-        try:
-            with engine.connect() as conn:
-                result = conn.execute(text("PRAGMA table_info(scan_history);")).fetchall()
-                col_names = [row[1] for row in result]
-                if "user_email" not in col_names:
-                    conn.execute(text("ALTER TABLE scan_history ADD COLUMN user_email VARCHAR(255);"))
-                    conn.commit()
-        except Exception:
-            pass
+    global _last_init_error
+    try:
+        Base.metadata.create_all(bind=engine)
+        
+        # Safe migration for existing SQLite database to add user_email column if missing
+        if DATABASE_URL.startswith("sqlite"):
+            try:
+                with engine.connect() as conn:
+                    result = conn.execute(text("PRAGMA table_info(scan_history);")).fetchall()
+                    col_names = [row[1] for row in result]
+                    if "user_email" not in col_names:
+                        conn.execute(text("ALTER TABLE scan_history ADD COLUMN user_email VARCHAR(255);"))
+                        conn.commit()
+            except Exception as mig_err:
+                logger.debug("SQLite column migration check skipped: %s", mig_err)
+        _last_init_error = None
+        return True
+    except Exception as e:
+        _last_init_error = str(e)
+        is_postgres = DATABASE_URL.startswith("postgres")
+        engine_name = "PostgreSQL" if is_postgres else "SQLite"
+        logger.warning(
+            "Database schema initialization skipped or failed for %s engine: %s. Application will continue in degraded mode.",
+            engine_name,
+            type(e).__name__
+        )
+        return False
 
 # ================= SCAN HISTORY =================
 def save_scan(results, user_email=None):
@@ -145,13 +218,12 @@ def save_scan(results, user_email=None):
         session.close()
 
 def get_all_scans(user_email=None, limit=100):
+    if not user_email:
+        return []
     init_db()
     session = SessionLocal()
     try:
-        query = session.query(ScanHistory)
-        if user_email and user_email != "analyst@vulneye.sec":
-            query = query.filter((ScanHistory.user_email == user_email) | (ScanHistory.user_email == None))
-        
+        query = session.query(ScanHistory).filter(ScanHistory.user_email == user_email)
         scans = query.order_by(ScanHistory.id.desc()).limit(limit).all()
         result = []
         for s in scans:
@@ -162,13 +234,15 @@ def get_all_scans(user_email=None, limit=100):
         session.close()
 
 def get_scan_by_id(scan_id, user_email=None):
+    if not user_email:
+        return None
     init_db()
     session = SessionLocal()
     try:
-        query = session.query(ScanHistory).filter(ScanHistory.id == scan_id)
-        if user_email and user_email != "analyst@vulneye.sec":
-            query = query.filter((ScanHistory.user_email == user_email) | (ScanHistory.user_email == None))
-        
+        query = session.query(ScanHistory).filter(
+            ScanHistory.id == scan_id,
+            ScanHistory.user_email == user_email
+        )
         scan = query.first()
         if scan and scan.raw_results:
             try:
@@ -183,13 +257,15 @@ def get_scan_by_id(scan_id, user_email=None):
         session.close()
 
 def get_latest_scan_results(url, user_email=None):
+    if not user_email:
+        return None
     init_db()
     session = SessionLocal()
     try:
-        query = session.query(ScanHistory).filter(ScanHistory.url == url)
-        if user_email and user_email != "analyst@vulneye.sec":
-            query = query.filter((ScanHistory.user_email == user_email) | (ScanHistory.user_email == None))
-        
+        query = session.query(ScanHistory).filter(
+            ScanHistory.url == url,
+            ScanHistory.user_email == user_email
+        )
         scan = query.order_by(ScanHistory.id.desc()).first()
         if scan and scan.raw_results:
             try:
@@ -204,13 +280,15 @@ def get_latest_scan_results(url, user_email=None):
         session.close()
 
 def delete_scan(scan_id, user_email=None):
+    if not user_email:
+        return False
     init_db()
     session = SessionLocal()
     try:
-        query = session.query(ScanHistory).filter(ScanHistory.id == scan_id)
-        if user_email and user_email != "analyst@vulneye.sec":
-            query = query.filter((ScanHistory.user_email == user_email) | (ScanHistory.user_email == None))
-        
+        query = session.query(ScanHistory).filter(
+            ScanHistory.id == scan_id,
+            ScanHistory.user_email == user_email
+        )
         scan = query.first()
         if scan:
             session.delete(scan)
@@ -257,23 +335,26 @@ def add_monitored_asset(user_email, domain, frequency="daily"):
         session.close()
 
 def get_monitored_assets(user_email):
+    if not user_email:
+        return []
     init_db()
     session = SessionLocal()
     try:
-        query = session.query(MonitoredAsset)
-        if user_email and user_email != "analyst@vulneye.sec":
-            query = query.filter(MonitoredAsset.user_email == user_email)
+        query = session.query(MonitoredAsset).filter(MonitoredAsset.user_email == user_email)
         return query.order_by(MonitoredAsset.id.desc()).all()
     finally:
         session.close()
 
 def delete_monitored_asset(asset_id, user_email):
+    if not user_email:
+        return False
     init_db()
     session = SessionLocal()
     try:
-        query = session.query(MonitoredAsset).filter(MonitoredAsset.id == asset_id)
-        if user_email and user_email != "analyst@vulneye.sec":
-            query = query.filter(MonitoredAsset.user_email == user_email)
+        query = session.query(MonitoredAsset).filter(
+            MonitoredAsset.id == asset_id,
+            MonitoredAsset.user_email == user_email
+        )
         asset = query.first()
         if asset:
             session.delete(asset)
@@ -318,23 +399,26 @@ def generate_api_key(user_email, name="Production Key"):
         session.close()
 
 def get_user_api_keys(user_email):
+    if not user_email:
+        return []
     init_db()
     session = SessionLocal()
     try:
-        query = session.query(ApiKey)
-        if user_email and user_email != "analyst@vulneye.sec":
-            query = query.filter(ApiKey.user_email == user_email)
+        query = session.query(ApiKey).filter(ApiKey.user_email == user_email)
         return query.order_by(ApiKey.id.desc()).all()
     finally:
         session.close()
 
 def revoke_api_key(key_id, user_email):
+    if not user_email:
+        return False
     init_db()
     session = SessionLocal()
     try:
-        query = session.query(ApiKey).filter(ApiKey.id == key_id)
-        if user_email and user_email != "analyst@vulneye.sec":
-            query = query.filter(ApiKey.user_email == user_email)
+        query = session.query(ApiKey).filter(
+            ApiKey.id == key_id,
+            ApiKey.user_email == user_email
+        )
         key_entry = query.first()
         if key_entry:
             key_entry.is_active = False
@@ -571,13 +655,15 @@ def get_user_transactions(user_email):
         session.close()
 
 def get_transaction_by_id(transaction_id, user_email=None):
+    if not transaction_id or not user_email:
+        return None
     init_db()
     session = SessionLocal()
     try:
-        query = session.query(PaymentTransaction).filter(PaymentTransaction.transaction_id == transaction_id)
-        if user_email and user_email != "analyst@vulneye.sec":
-            query = query.filter(PaymentTransaction.user_email == user_email)
-        
+        query = session.query(PaymentTransaction).filter(
+            PaymentTransaction.transaction_id == transaction_id,
+            PaymentTransaction.user_email == user_email
+        )
         t = query.first()
         if not t:
             return None
@@ -651,6 +737,11 @@ def send_webhook_alert(webhook_url, target_url, risk_level, findings_summary="Vu
     if not webhook_url:
         return False, "No webhook URL provided"
     
+    from scanner import validate_outbound_url
+    is_safe, reason = validate_outbound_url(webhook_url)
+    if not is_safe:
+        return False, f"SSRF Security Violation: Webhook destination blocked ({reason})"
+
     import requests
     try:
         # Determine color and title based on risk
@@ -709,7 +800,7 @@ def send_webhook_alert(webhook_url, target_url, risk_level, findings_summary="Vu
                 "timestamp": datetime.utcnow().isoformat()
             }
         
-        resp = requests.post(webhook_url, json=payload, headers={"Content-Type": "application/json"}, timeout=8)
+        resp = requests.post(webhook_url, json=payload, headers={"Content-Type": "application/json"}, timeout=8, allow_redirects=False)
         if resp.status_code in [200, 204]:
             return True, "Alert delivered successfully"
         return False, f"Server responded with status code {resp.status_code}"

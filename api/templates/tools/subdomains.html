@@ -44,6 +44,7 @@
             </p>
 
             <form action="/tools/subdomain-finder" method="POST" style="display: flex; gap: 10px; max-width: 500px; margin: 24px auto 0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <input 
                     type="text" 
                     name="target" 

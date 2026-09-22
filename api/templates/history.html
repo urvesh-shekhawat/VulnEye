@@ -158,9 +158,12 @@
                                 <a href="/result?url={{ scan[1]|urlencode }}" class="btn-cyber-secondary" style="padding: 5px 10px; font-size: 11px;">
                                     View ↗
                                 </a>
-                                <a href="/scan/delete/{{ scan[0] }}" onclick="return confirm('Are you sure you want to delete scan #{{ scan[0] }}?');" class="btn-cyber-secondary" style="padding: 5px 8px; font-size: 11px; color: var(--color-danger); border-color: rgba(255,42,95,0.3);" title="Delete Record">
-                                    ✕
-                                </a>
+                                <form action="/scan/delete/{{ scan[0] }}" method="POST" style="display: inline; margin: 0;" onsubmit="return confirm('Are you sure you want to delete scan #{{ scan[0] }}?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="btn-cyber-secondary" style="padding: 5px 8px; font-size: 11px; color: var(--color-danger); border-color: rgba(255,42,95,0.3); background: transparent; cursor: pointer;" title="Delete Record">
+                                        ✕
+                                    </button>
+                                </form>
                             </div>
                         </td>
                     </tr>

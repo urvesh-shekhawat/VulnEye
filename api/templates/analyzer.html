@@ -228,6 +228,7 @@
         <!-- Selector Form -->
         <div class="analyzer-selector">
             <form action="/analyzer" method="POST" style="display: flex; gap: 12px; width: 100%; flex-wrap: wrap;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <div style="flex: 1; min-width: 250px;">
                     <label style="font-size: 12px; font-weight: 700; color: var(--text-dim); display: block; margin-bottom: 6px;">
                         SELECT PAST SCAN REPORT:

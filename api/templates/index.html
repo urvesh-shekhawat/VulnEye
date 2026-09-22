@@ -103,6 +103,7 @@
             <!-- Scan Input Form -->
             <div class="scan-box-wrapper">
                 <form action="/scan" method="POST" class="scan-box" id="scanForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <span class="scan-box-icon">🎯</span>
                     <input 
                         type="text" 

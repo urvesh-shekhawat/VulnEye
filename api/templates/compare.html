@@ -130,6 +130,7 @@
         <!-- Scan Selector Form -->
         <div class="compare-selector-card">
             <form action="/compare" method="POST" style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <div style="flex: 1; min-width: 250px;">
                     <label style="font-size: 12px; font-weight: 700; color: var(--text-dim); display: block; margin-bottom: 6px;">
                         BASELINE SCAN (A - Older)
