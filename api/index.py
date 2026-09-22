@@ -56,6 +56,7 @@ from database import (
     get_webhook_config,
     save_webhook_config,
     send_webhook_alert,
+    dispatch_scan_alerts,
     get_db_status,
     normalize_database_url
 )
@@ -391,6 +392,16 @@ def scan_stream():
 
         save_scan(results, user_email=user_email)
 
+        # Automatic webhook threat alert dispatch
+        try:
+            dispatch_res = dispatch_scan_alerts(results, user_email=user_email)
+            if dispatch_res.get("status") == "sent":
+                app.logger.info("Automated webhook alert dispatched for scan: %s", results.get("url"))
+            elif dispatch_res.get("status") == "failed":
+                app.logger.warning("Automated webhook alert dispatch failed: %s", dispatch_res.get("reason"))
+        except Exception as alert_err:
+            app.logger.warning("Automated webhook alert exception caught safely in SSE stream: %s", type(alert_err).__name__)
+
         yield f"data: {json.dumps({'status': 'done', 'redirect': redirect_url})}\n\n"
 
     return Response(generate_stream(), mimetype='text/event-stream')
@@ -410,6 +421,14 @@ def result():
     if not results:
         results = run_scan(url)
         save_scan(results, user_email=user_email)
+        try:
+            dispatch_res = dispatch_scan_alerts(results, user_email=user_email)
+            if dispatch_res.get("status") == "sent":
+                app.logger.info("Automated webhook alert dispatched for fallback scan: %s", results.get("url"))
+            elif dispatch_res.get("status") == "failed":
+                app.logger.warning("Automated webhook alert dispatch failed: %s", dispatch_res.get("reason"))
+        except Exception as alert_err:
+            app.logger.warning("Automated webhook alert exception caught safely in result fallback: %s", type(alert_err).__name__)
 
     return render_template("result.html", results=results)
 
@@ -1357,6 +1376,16 @@ def api_scan():
 
     results = run_scan(url)
     save_scan(results, user_email=user_email)
+
+    # Automatic webhook threat alert dispatch
+    try:
+        dispatch_res = dispatch_scan_alerts(results, user_email=user_email)
+        if dispatch_res.get("status") == "sent":
+            app.logger.info("Automated webhook alert dispatched for API scan: %s", results.get("url"))
+        elif dispatch_res.get("status") == "failed":
+            app.logger.warning("Automated webhook alert dispatch failed: %s", dispatch_res.get("reason"))
+    except Exception as alert_err:
+        app.logger.warning("Automated webhook alert exception caught safely in API scan: %s", type(alert_err).__name__)
 
     return jsonify({
         "status": "success",

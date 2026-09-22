@@ -800,7 +800,7 @@ def save_webhook_config(user_email, webhook_url, channel_type="discord", alert_l
     finally:
         session.close()
 
-def send_webhook_alert(webhook_url, target_url, risk_level, findings_summary="Vulnerability scan completed", is_test=False):
+def send_webhook_alert(webhook_url, target_url, risk_level, findings_summary="Vulnerability scan completed", is_test=False, timeout=8):
     """Dispatches a formatted security alert to Discord, Slack, or generic HTTP Webhooks."""
     if not webhook_url:
         return False, "No webhook URL provided"
@@ -868,9 +868,128 @@ def send_webhook_alert(webhook_url, target_url, risk_level, findings_summary="Vu
                 "timestamp": datetime.utcnow().isoformat()
             }
         
-        resp = requests.post(webhook_url, json=payload, headers={"Content-Type": "application/json"}, timeout=8, allow_redirects=False)
+        resp = requests.post(webhook_url, json=payload, headers={"Content-Type": "application/json"}, timeout=timeout, allow_redirects=False)
         if resp.status_code in [200, 204]:
             return True, "Alert delivered successfully"
         return False, f"Server responded with status code {resp.status_code}"
     except Exception as e:
         return False, f"Webhook dispatch error: {str(e)}"
+
+def dispatch_scan_alerts(results, user_email):
+    """
+    Evaluates completed scan findings and dispatches automated webhook alerts
+    based on the user's configured alert level preference.
+    
+    Alert Levels:
+    - 'All': Dispatches for any completed scan.
+    - 'High & Critical': Dispatches when overall risk is 'High' or critical perimeter exposures are present.
+    - 'Critical Only': Dispatches only when critical exposures (e.g. leaked .env/.git, open DB ports) are present.
+    
+    Returns structured dict:
+      {
+        "sent": bool,
+        "reason": str,
+        "status": "sent" | "skipped" | "failed"
+      }
+    """
+    if not user_email:
+        return {"sent": False, "reason": "No user email provided", "status": "skipped"}
+
+    try:
+        config = get_webhook_config(user_email)
+        if not config or not config.get("is_enabled") or not config.get("webhook_url"):
+            return {
+                "sent": False,
+                "reason": "Webhook notifications not configured or disabled",
+                "status": "skipped"
+            }
+
+        webhook_url = config.get("webhook_url")
+        alert_level = config.get("alert_level", "High & Critical")
+        target_url = results.get("url", "Unknown Target")
+        risk = results.get("risk", "Low")
+
+        # 1. Extract critical findings safely without raw contents
+        critical_findings = []
+        
+        # Leaked sensitive configuration or source repository files
+        for leak in results.get("sensitive_files", []):
+            if isinstance(leak, dict):
+                leak_file = leak.get("file", "sensitive file")
+                if leak.get("severity") == "High" or leak_file in [".env", ".git", "backup.zip", ".bash_history", "wp-config.php"]:
+                    critical_findings.append(f"Exposed {leak_file} configuration/source file")
+
+        # Dangerous public database or administrative ports
+        db_ports = {
+            3306: "MySQL Database",
+            5432: "PostgreSQL Database",
+            6379: "Redis Cache/DB",
+            27017: "MongoDB Database",
+            1433: "MSSQL Database",
+            9200: "Elasticsearch",
+            2375: "Docker Daemon",
+            2379: "etcd Cluster"
+        }
+        for p in results.get("open_ports", []):
+            p_num = p.get("port") if isinstance(p, dict) else p
+            if p_num in db_ports:
+                critical_findings.append(f"Publicly accessible {db_ports[p_num]} (Port {p_num})")
+
+        # Critical SSL / Certificate issues on HTTPS
+        ssl_info = results.get("ssl_certificate", {})
+        if ssl_info.get("expired"):
+            critical_findings.append("Expired SSL/TLS Certificate")
+
+        has_critical_findings = len(critical_findings) > 0
+        is_high_risk = risk.lower() in ["high", "critical"]
+
+        # 2. Evaluate alert level threshold
+        should_send = False
+        if alert_level == "All":
+            should_send = True
+        elif alert_level == "High & Critical":
+            should_send = is_high_risk or has_critical_findings
+        elif alert_level == "Critical Only":
+            should_send = has_critical_findings
+        else:
+            should_send = is_high_risk or has_critical_findings
+
+        if not should_send:
+            return {
+                "sent": False,
+                "reason": f"Scan risk '{risk}' does not meet threshold for alert level '{alert_level}'",
+                "status": "skipped"
+            }
+
+        # 3. Construct safe summary
+        if critical_findings:
+            summary_lines = [f"{len(critical_findings)} high-severity finding(s) detected:"]
+            for f in critical_findings[:5]:
+                summary_lines.append(f"• {f}")
+            findings_summary = "\n".join(summary_lines)
+        else:
+            missing_hdrs = results.get("missing_headers", [])
+            findings_summary = f"Automated scan completed with risk posture '{risk}'. Missing headers: {len(missing_hdrs)}"
+
+        # 4. Dispatch alert with short timeout for serverless resilience
+        ok, msg = send_webhook_alert(
+            webhook_url=webhook_url,
+            target_url=target_url,
+            risk_level=risk,
+            findings_summary=findings_summary,
+            is_test=False,
+            timeout=3
+        )
+
+        if ok:
+            return {"sent": True, "reason": msg, "status": "sent"}
+        else:
+            return {"sent": False, "reason": msg, "status": "failed"}
+
+    except Exception as e:
+        logger.warning("Error during automated webhook alert dispatch: %s", type(e).__name__)
+        return {
+            "sent": False,
+            "reason": f"Dispatch execution error: {type(e).__name__}",
+            "status": "failed"
+        }
